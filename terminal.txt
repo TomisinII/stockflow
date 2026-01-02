@@ -24,6 +24,7 @@ php artisan make:model Product
 php artisan make:model PurchaseOrder
 php artisan make:model PurchaseOrderItem
 php artisan make:model StockAdjustment
+php artisan make:model Notification
 
 php artisan make:seeder RolePermissionSeeder
 php artisan make:seeder CategorySeeder
