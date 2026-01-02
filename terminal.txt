@@ -1,0 +1,31 @@
+php artisan migrate
+
+composer require spatie/laravel-permission
+php artisan vendor:publish --provider="Spatie\Permission\Providers\PermissionServiceProvider"
+php artisan migrate
+
+# Core tables first
+php artisan make:migration create_categories_table
+php artisan make:migration create_suppliers_table
+php artisan make:migration create_products_table
+
+# Then dependent tables
+php artisan make:migration create_purchase_orders_table
+php artisan make:migration create_purchase_order_items_table
+php artisan make:migration create_stock_adjustments_table
+php artisan make:migration create_notifications_table
+
+# User modifications
+php artisan make:migration add_theme_and_avatar_to_users_table
+
+php artisan make:model Category
+php artisan make:model Supplier
+php artisan make:model Product
+php artisan make:model PurchaseOrder
+php artisan make:model PurchaseOrderItem
+php artisan make:model StockAdjustment
+
+php artisan make:seeder RolePermissionSeeder
+php artisan make:seeder CategorySeeder
+php artisan make:seeder UserSeeder
+
