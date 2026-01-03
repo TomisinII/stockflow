@@ -34,6 +34,31 @@ php artisan make:livewire Landing
 php artisan livewire:publish --config
 
 php artisan make:livewire Landing
+php artisan make:livewire Layout/Navigation
+php artisan make:livewire Products/Index
+php artisan make:livewire Products/Create
+php artisan make:livewire Products/Show
+php artisan make:livewire Products/Edit
+php artisan make:livewire Categories/Index
+php artisan make:livewire Categories/Create
+php artisan make:livewire Suppliers/Index
+php artisan make:livewire Suppliers/Create
+php artisan make:livewire Suppliers/Show
+php artisan make:livewire Suppliers/Edit
+php artisan make:livewire PurchaseOrders/Index
+php artisan make:livewire PurchaseOrders/Create
+php artisan make:livewire PurchaseOrders/Show
+php artisan make:livewire StockAdjustments/Index
+php artisan make:livewire StockAdjustments/Create
+php artisan make:livewire Reports/Index
+php artisan make:livewire Notifications/Index
+php artisan make:livewire Users/Index
+php artisan make:livewire Users/Create
+php artisan make:livewire Settings/Index
+
+
+
+php artisan storage:link
 
 
 
