@@ -120,7 +120,7 @@ class Index extends Component
         $this->dispatch('showConfirmModal', [
             'title' => 'Delete Product',
             'message' => "Are you sure you want to delete '{$product->name}'? This action cannot be undone and all associated data will be permanently removed.",
-            'confirmText' => 'Delete Product',
+            'confirmText' => 'Delete',
             'confirmColor' => 'red',
             'cancelText' => 'Cancel',
             'icon' => 'danger',

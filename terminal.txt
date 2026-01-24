@@ -47,6 +47,7 @@ php artisan make:livewire Suppliers/Index
 php artisan make:livewire Suppliers/Create
 php artisan make:livewire Suppliers/Show
 php artisan make:livewire Suppliers/Edit
+php artisan make:livewire Suppliers/Card
 php artisan make:livewire PurchaseOrders/Index
 php artisan make:livewire PurchaseOrders/Create
 php artisan make:livewire PurchaseOrders/Show

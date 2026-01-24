@@ -14,8 +14,16 @@ class Index extends Component
     public $categoryToEdit = null;
     public $categoryToDelete = null;
 
-    protected $listeners = ['categoryCreated', 'categoryUpdated', 'categoryDeleted'];
+    protected $listeners = [
+        'confirmed' => 'handleConfirmed',
+        'cancelled' => 'handleCancelled',
+    ];
 
+    public function mount(){
+        if (request()->query('action') === 'create-category') {
+            $this->dispatch('open-modal', 'create-category');
+        }
+    }
 
     public function openCreateModal()
     {
@@ -29,10 +37,18 @@ class Index extends Component
         $this->dispatch('open-modal', 'edit-category');
     }
 
+    #[On('category-created')]
+    #[On('category-updated')]
+    #[On('category-deleted')]
+    public function refreshCategories()
+    {
+
+    }
+
     public function confirmDelete($categoryId)
     {
-        $this->categoryToDelete = $categoryId;
         $category = Category::findorFail($categoryId);
+        $this->categoryToDelete = $categoryId;
 
         $this->dispatch('showConfirmModal', [
             'title' => 'Delete Category',
@@ -44,11 +60,10 @@ class Index extends Component
         ]);
     }
 
-    #[On('delete-confirmed')]
-    public function deleteCategory($categoryId)
+    public function handleConfirmed()
     {
         try {
-            $category = Category::findOrFail($categoryId);
+            $category = Category::findOrFail($this->categoryToDelete);
 
             // Check if category has products
             if ($category->products()->count() > 0) {
@@ -60,6 +75,8 @@ class Index extends Component
             }
 
             $category->delete();
+
+            $this->dispatch('category-deleted');
 
             $this->dispatch('toast', [
                 'type' => 'success',
@@ -73,22 +90,9 @@ class Index extends Component
         }
     }
 
-    #[On('categoryCreated')]
-    public function categoryCreated()
+    public function handleCancelled()
     {
-        $this->dispatch('toast', [
-            'type' => 'success',
-            'message' => 'Category created successfully!'
-        ]);
-    }
-
-    #[On('categoryUpdated')]
-    public function categoryUpdated()
-    {
-        $this->dispatch('toast', [
-            'type' => 'success',
-            'message' => 'Category updated successfully!'
-        ]);
+        $this->categoryToDelete = null;
     }
 
     public function getCategoriesProperty()

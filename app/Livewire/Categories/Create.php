@@ -75,7 +75,12 @@ class Create extends Component
             $this->color = $this->colors[0];
 
             $this->dispatch('close-modal', 'create-category');
-            $this->dispatch('categoryCreated');
+            $this->dispatch('category-created');
+
+            $this->dispatch('toast', [
+                'type' => 'success',
+                'message' => 'Category created successfully!'
+            ]);
         } catch (\Exception $e) {
             $this->dispatch('toast', [
                 'type' => 'error',

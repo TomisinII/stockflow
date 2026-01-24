@@ -29,12 +29,6 @@ class Show extends Component
         $this->product->load(['category', 'supplier', 'stockAdjustments.user']);
     }
 
-    #[On('product-deleted')]
-    public function handleProductDeleted()
-    {
-        return redirect()->route('products.index')->with('success', 'Product deleted successfully.');
-    }
-
     public function confirmDelete($productId)
     {
         $product = Product::findOrFail($productId);

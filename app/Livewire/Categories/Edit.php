@@ -89,7 +89,12 @@ class Edit extends Component
             ]);
 
             $this->dispatch('close-modal', 'edit-category');
-            $this->dispatch('categoryUpdated');
+            $this->dispatch('category-updated');
+
+            $this->dispatch('toast', [
+                'type' => 'success',
+                'message' => 'Category updated successfully!'
+            ]);
         } catch (\Exception $e) {
             $this->dispatch('toast', [
                 'type' => 'error',
