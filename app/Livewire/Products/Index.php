@@ -24,6 +24,14 @@ class Index extends Component
     public $selectedProducts = [];
     public $selectAll = false;
 
+
+    public $productToDelete = null;
+
+    protected $listeners = [
+        'confirmed' => 'handleConfirmed',
+        'cancelled' => 'handleCancelled',
+    ];
+
     protected $queryString = [
         'search' => ['except' => ''],
         'categoryFilter' => ['except' => ''],
@@ -31,6 +39,12 @@ class Index extends Component
         'statusFilter' => ['except' => ''],
         'stockFilter' => ['except' => ''],
     ];
+
+    public function mount(){
+        if (request()->query('action') === 'create-product') {
+            $this->dispatch('open-modal', 'create-product');
+        }
+    }
 
     public function updatingSearch()
     {
@@ -97,20 +111,52 @@ class Index extends Component
         $this->resetPage();
     }
 
-    public function deleteProduct($productId)
+
+    public function confirmDelete($productId)
     {
         $product = Product::findOrFail($productId);
+        $this->productToDelete = $productId;
 
-        $product->delete();
+        $this->dispatch('showConfirmModal', [
+            'title' => 'Delete Product',
+            'message' => "Are you sure you want to delete '{$product->name}'? This action cannot be undone and all associated data will be permanently removed.",
+            'confirmText' => 'Delete Product',
+            'confirmColor' => 'red',
+            'cancelText' => 'Cancel',
+            'icon' => 'danger',
+        ]);
+    }
 
-        session()->flash('message', 'Product deleted successfully.');
-        $this->dispatch('product-deleted');
+    public function handleConfirmed()
+    {
+        if ($this->productToDelete) {
+            $product = Product::find($this->productToDelete);
+
+            if ($product) {
+                $product->delete();
+
+            $this->dispatch('toast', [
+                'message' => 'Product deleted successfully.',
+                'type' => 'success'
+            ]);
+
+                $this->productToDelete = null;
+            }
+        }
+    }
+
+    public function handleCancelled()
+    {
+        $this->productToDelete = null;
     }
 
     public function exportProducts()
     {
         // Export logic will be implemented later
-        session()->flash('message', 'Export feature coming soon!');
+        $this->dispatch('toast', [
+            'message' => 'Export feature coming soon!',
+            'type' => 'info'
+        ]);
     }
 
     public function render()

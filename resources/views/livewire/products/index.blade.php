@@ -1,5 +1,5 @@
-<div class="py-6">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div>
+    <div class="p-4 sm:p-6 lg:p-8">
         {{-- Header --}}
         <div class="mb-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -139,13 +139,13 @@
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">
                                 <input type="checkbox" class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500">
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">Product</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">Category</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">Supplier</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">Stock</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">Cost Price</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">Selling Price</th>
-                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">Actions</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap uppercase">Product</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap uppercase">Category</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap uppercase">Supplier</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap uppercase">Stock</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap uppercase">Cost Price</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap uppercase">Selling Price</th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap uppercase">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -213,8 +213,7 @@
                                             </svg>
                                         </button>
                                         <button
-                                            x-data=""
-                                            x-on:click="$dispatch('open-modal', 'delete-product-{{ $product->id }}')"
+                                            wire:click="confirmDelete({{ $product->id }})"
                                             class="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                                         >
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,21 +262,10 @@
     </div>
 
     {{-- Modals --}}
-    <livewire:products.create />
+    @livewire('products.create');
+    @livewire('components.confirm-modal')
 
     @foreach($products as $product)
         <livewire:products.edit :product="$product" :key="'edit-'.$product->id" />
-
-        {{-- Delete Confirmation Modal --}}
-        <x-confirm-modal
-            name="delete-product-{{ $product->id }}"
-            title="Delete Product"
-            message="Are you sure you want to delete '{{ $product->name }}'? This action cannot be undone and all associated data will be permanently removed."
-            confirmText="Delete Product"
-            cancelText="Cancel"
-            confirmColor="red"
-            x-data="{ productId: {{ $product->id }} }"
-            x-on:confirmed.window="if ($event.detail === 'delete-product-' + productId) $wire.deleteProduct(productId)"
-        />
     @endforeach
 </div>

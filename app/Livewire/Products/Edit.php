@@ -116,7 +116,10 @@ class Edit extends Component
         $this->dispatch('close-modal', 'edit-product-' . $this->product->id);
         $this->dispatch('product-updated');
 
-        session()->flash('message', 'Product updated successfully.');
+        $this->dispatch('toast', [
+            'message' => 'Product updated successfully.',
+            'type' => 'success'
+        ]);
     }
 
     public function closeModal()

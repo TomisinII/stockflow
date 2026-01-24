@@ -1,14 +1,14 @@
-<x-modal name="create-category" maxWidth="md" focusable>
+<x-modal name="edit-category" maxWidth="md" focusable>
     <div class="p-6">
         <!-- Modal Header -->
         <div class="flex items-center justify-between mb-6">
             <div>
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Add New Category</h2>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Create a new category to organize your products</p>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Edit Category</h2>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Update the category details below</p>
             </div>
             <button
                 type="button"
-                @click="$dispatch('close-modal', 'create-category')"
+                @click="$dispatch('close-modal', 'edit-category')"
                 class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -18,13 +18,13 @@
         </div>
 
         <!-- Form -->
-        <form wire:submit.prevent="save">
+        <form wire:submit.prevent="update">
             <!-- Category Name -->
             <div class="mb-4">
-                <x-input-label for="name" value="Category Name" required />
+                <x-input-label for="edit-name" value="Category Name" required />
                 <x-text-input
                     wire:model="name"
-                    id="name"
+                    id="edit-name"
                     type="text"
                     placeholder="Enter category name"
                     class="mt-1"
@@ -34,10 +34,10 @@
 
             <!-- Description -->
             <div class="mb-4">
-                <x-input-label for="description" value="Description" />
+                <x-input-label for="edit-description" value="Description" />
                 <textarea
                     wire:model="description"
-                    id="description"
+                    id="edit-description"
                     rows="3"
                     placeholder="Brief description of the category"
                     class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
@@ -47,10 +47,10 @@
 
             <!-- Icon Selection -->
             <div class="mb-4">
-                <x-input-label for="icon" value="Icon" required />
+                <x-input-label for="edit-icon" value="Icon" required />
                 <select
                     wire:model="icon"
-                    id="icon"
+                    id="edit-icon"
                     class="mt-1 w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900 dark:text-white"
                 >
                     <option value="">Select an icon</option>
@@ -89,7 +89,7 @@
                     Cancel
                 </x-secondary-button>
                 <x-primary-button type="submit">
-                    Save Category
+                    Update Category
                 </x-primary-button>
             </div>
         </form>

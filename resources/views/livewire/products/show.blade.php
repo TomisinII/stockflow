@@ -1,5 +1,5 @@
-<div class="py-6">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div>
+    <div class="p-4 sm:p-6 lg:p-8">
         {{-- Back Button & Actions --}}
         <div class="mb-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -22,8 +22,7 @@
                         Edit
                     </x-secondary-button>
                     <x-secondary-button
-                        x-data=""
-                        x-on:click="$dispatch('open-modal', 'delete-product-{{ $product->id }}')"
+                        wire:click="confirmDelete({{ $product->id }})"
                         class="!text-red-600 !border-red-300 hover:!bg-red-50 dark:!text-red-400 dark:!border-red-600 dark:hover:!bg-red-900/20">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -267,16 +266,7 @@
 
     {{-- Edit Modal --}}
     <livewire:products.edit :product="$product" />
+    {{-- Delete Modal --}}
 
-
-    {{-- Delete Confirmation Modal --}}
-    <x-confirm-modal
-        name="delete-product-{{ $product->id }}"
-        title="Delete Product"
-        message="Are you sure you want to delete '{{ $product->name }}'? This action cannot be undone and all associated data will be permanently removed."
-        confirmText="Delete Product"
-        cancelText="Cancel"
-        confirmColor="red"
-        x-on:confirmed.window="if ($event.detail === 'delete-product-{{ $product->id }}') $wire.deleteProduct()"
-    />
+    @livewire('components.confirm-modal')
 </div>

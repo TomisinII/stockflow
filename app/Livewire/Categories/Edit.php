@@ -5,12 +5,13 @@ namespace App\Livewire\Categories;
 use App\Models\Category;
 use Livewire\Component;
 
-class Create extends Component
+class Edit extends Component
 {
+    public $categoryId;
     public $name = '';
     public $description = '';
     public $icon = '';
-    public $color = '#3B82F6'; // Default blue
+    public $color = '#3B82F6';
 
     public $icons = [
         'laptop' => 'Electronics',
@@ -35,12 +36,15 @@ class Create extends Component
         '#F59E0B', // Amber
     ];
 
-    protected $rules = [
-        'name' => 'required|string|max:100|unique:categories,name',
-        'description' => 'nullable|string|max:500',
-        'icon' => 'required|string',
-        'color' => 'required|string',
-    ];
+    protected function rules()
+    {
+        return [
+            'name' => 'required|string|max:100|unique:categories,name,' . $this->categoryId,
+            'description' => 'nullable|string|max:500',
+            'icon' => 'required|string',
+            'color' => 'required|string',
+        ];
+    }
 
     protected $messages = [
         'name.required' => 'Category name is required.',
@@ -49,9 +53,20 @@ class Create extends Component
         'color.required' => 'Please select a color.',
     ];
 
-    public function mount()
+    public function mount($categoryId)
     {
-        $this->color = $this->colors[0];
+        $this->categoryId = $categoryId;
+        $this->loadCategory();
+    }
+
+    public function loadCategory()
+    {
+        $category = Category::findOrFail($this->categoryId);
+
+        $this->name = $category->name;
+        $this->description = $category->description;
+        $this->icon = $category->icon;
+        $this->color = $category->color;
     }
 
     public function selectColor($color)
@@ -59,41 +74,38 @@ class Create extends Component
         $this->color = $color;
     }
 
-    public function save()
+    public function update()
     {
         $this->validate();
 
         try {
-            Category::create([
+            $category = Category::findOrFail($this->categoryId);
+
+            $category->update([
                 'name' => $this->name,
                 'description' => $this->description,
                 'icon' => $this->icon,
                 'color' => $this->color,
             ]);
 
-            $this->reset(['name', 'description', 'icon']);
-            $this->color = $this->colors[0];
-
-            $this->dispatch('close-modal', 'create-category');
-            $this->dispatch('categoryCreated');
+            $this->dispatch('close-modal', 'edit-category');
+            $this->dispatch('categoryUpdated');
         } catch (\Exception $e) {
             $this->dispatch('toast', [
                 'type' => 'error',
-                'message' => 'Failed to create category. Please try again.'
+                'message' => 'Failed to update category. Please try again.'
             ]);
         }
     }
 
     public function cancel()
     {
-        $this->reset(['name', 'description', 'icon']);
-        $this->color = $this->colors[0];
         $this->resetValidation();
-        $this->dispatch('close-modal', 'create-category');
+        $this->dispatch('close-modal', 'edit-category');
     }
 
     public function render()
     {
-        return view('livewire.categories.create');
+        return view('livewire.categories.edit');
     }
 }

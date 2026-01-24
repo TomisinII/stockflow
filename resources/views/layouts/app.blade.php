@@ -29,6 +29,8 @@
         </div>
     </div>
 
+    <x-toast />
+
     <script>
         // Listen for sidebar toggle events from Livewire
         document.addEventListener('livewire:init', () => {
@@ -38,5 +40,17 @@
             });
         });
     </script>
+    @if(session('toast'))
+        <script>
+            window.addEventListener('DOMContentLoaded', function() {
+                window.dispatchEvent(new CustomEvent('toast', {
+                    detail: [{
+                        message: @js(session('toast.message')),
+                        type: @js(session('toast.type'))
+                    }]
+                }));
+            });
+        </script>
+    @endif
 </body>
 </html>

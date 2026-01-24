@@ -29,6 +29,7 @@ php artisan make:seeder SupplierSeeder
 php artisan make:seeder ProductSeeder
 
 php artisan make:livewire Dashboard
+php artisan make:livewire QuickAdd
 php artisan make:livewire Landing
 
 php artisan livewire:publish --config
@@ -41,6 +42,7 @@ php artisan make:livewire Products/Show
 php artisan make:livewire Products/Edit
 php artisan make:livewire Categories/Index
 php artisan make:livewire Categories/Create
+php artisan make:livewire Categories/Edit
 php artisan make:livewire Suppliers/Index
 php artisan make:livewire Suppliers/Create
 php artisan make:livewire Suppliers/Show
@@ -56,9 +58,10 @@ php artisan make:livewire Users/Index
 php artisan make:livewire Users/Create
 php artisan make:livewire Settings/Index
 
-
-
 php artisan storage:link
+
+php artisan make:livewire Components/ConfirmModal
+
 
 
 

@@ -108,7 +108,10 @@ class Create extends Component
         $this->dispatch('product-created');
         $this->reset();
 
-        session()->flash('message', 'Product created successfully.');
+        $this->dispatch('toast', [
+            'message' => 'Product created successfully.',
+            'type' => 'success'
+        ]);
     }
 
     public function closeModal()
