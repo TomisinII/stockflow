@@ -2,35 +2,34 @@
 
 namespace App\Livewire\Layout;
 
-use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Illuminate\Support\Facades\Auth;
 
 class Navigation extends Component
 {
     public $sidebarOpen = true;
-    public $darkMode = false;
+    public $currentRoute;
 
     public function mount()
     {
-        $this->darkMode = Auth::user()->theme === 'dark';
+        $this->sidebarOpen = session('sidebarOpen', true);
+        $this->currentRoute = request()->route()->getName();
     }
 
     public function toggleSidebar()
     {
         $this->sidebarOpen = !$this->sidebarOpen;
         session(['sidebarOpen' => $this->sidebarOpen]);
-
-        $this->dispatch('sidebar-toggled', open: $this->sidebarOpen);
     }
 
     public function toggleDarkMode()
     {
-        $this->darkMode = !$this->darkMode;
+        $user = Auth::user();
+        $newTheme = $user->theme === 'dark' ? 'light' : 'dark';
 
-        $theme = $this->darkMode ? 'dark' : 'light';
-        Auth::user()->update(['theme' => $theme]);
+        $user->update(['theme' => $newTheme]);
 
-        $this->dispatch('theme-changed', theme: $theme);
+        $this->dispatch('theme-toggled', theme: $newTheme);
     }
 
     public function logout()
@@ -39,7 +38,21 @@ class Navigation extends Component
         session()->invalidate();
         session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('login');
+    }
+
+    public function isActiveRoute($routePattern)
+    {
+        if (is_array($routePattern)) {
+            foreach ($routePattern as $pattern) {
+                if (str_starts_with($this->currentRoute, $pattern)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return str_starts_with($this->currentRoute, $routePattern);
     }
 
     public function render()

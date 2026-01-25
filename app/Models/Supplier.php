@@ -59,6 +59,15 @@ class Supplier extends Model
     }
 
     /**
+     * Scope to get only inactive suppliers
+     * Usage: Supplier::inactive()->get()
+     */
+    public function scopeInactive($query)
+    {
+        return $query->where('status', 'inactive');
+    }
+
+    /**
      * Scope to get suppliers with recent orders
      * Usage: Supplier::withRecentOrders()->get()
      */
@@ -84,5 +93,82 @@ class Supplier extends Model
         ]);
 
         return implode(', ', $parts);
+    }
+
+    /**
+     * Get initials from company name
+     * Usage: $supplier->initials
+     */
+    public function getInitialsAttribute(): string
+    {
+        $words = explode(' ', $this->company_name);
+        if (count($words) >= 2) {
+            return strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1));
+        }
+        return strtoupper(substr($this->company_name, 0, 2));
+    }
+
+    /**
+     * Get total amount spent with this supplier (received orders only)
+     * Usage: $supplier->totalSpent
+     */
+    public function getTotalSpentAttribute(): float
+    {
+        return $this->purchaseOrders()
+            ->where('status', 'received')
+            ->sum('total_amount');
+    }
+
+    /**
+     * Get count of pending purchase orders
+     * Usage: $supplier->pendingOrdersCount
+     */
+    public function getPendingOrdersCountAttribute(): int
+    {
+        return $this->purchaseOrders()
+            ->whereIn('status', ['draft', 'sent'])
+            ->count();
+    }
+
+    /**
+     * Get count of active products from this supplier
+     * Usage: $supplier->activeProductsCount
+     */
+    public function getActiveProductsCountAttribute(): int
+    {
+        return $this->products()
+            ->where('status', 'active')
+            ->count();
+    }
+
+    /**
+     * Get count of low stock products from this supplier
+     * Usage: $supplier->lowStockProductsCount
+     */
+    public function getLowStockProductsCountAttribute(): int
+    {
+        return $this->products()
+            ->lowStock()
+            ->count();
+    }
+
+    /**
+     * Check if supplier has any recent orders (last 30 days)
+     * Usage: if ($supplier->hasRecentOrders) { ... }
+     */
+    public function getHasRecentOrdersAttribute(): bool
+    {
+        return $this->purchaseOrders()
+            ->where('order_date', '>=', now()->subDays(30))
+            ->exists();
+    }
+
+    /**
+     * Check if supplier is active
+     * Usage: if ($supplier->isActive) { ... }
+     */
+    public function getIsActiveAttribute(): bool
+    {
+        return $this->status === 'active';
     }
 }

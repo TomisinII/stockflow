@@ -5,25 +5,22 @@ namespace App\Livewire\PurchaseOrders;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\Product;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 
-class Create extends Component
+class Edit extends Component
 {
-    public $supplier_id = '';
+    public PurchaseOrder $purchaseOrder;
+    public $supplier_id;
     public $order_date;
-    public $expected_delivery_date = '';
-    public $notes = '';
-    public $status = 'draft';
+    public $expected_delivery_date;
+    public $notes;
+    public $status;
 
     // Products management
     public $selectedProducts = [];
     public $productSearch = '';
     public $showProductDropdown = false;
-
-    // Auto-generated PO number
-    public $po_number;
 
     protected $rules = [
         'supplier_id' => 'required|exists:suppliers,id',
@@ -45,22 +42,30 @@ class Create extends Component
         'selectedProducts.*.unit_cost.required' => 'Unit cost is required',
     ];
 
-    public function mount()
+    public function mount($purchaseOrderId)
     {
-        $this->order_date = now()->format('Y-m-d');
-        $this->po_number = $this->generatePONumber();
-    }
+        $this->purchaseOrder = PurchaseOrder::with(['items.product'])->findOrFail($purchaseOrderId);
 
-    public function generatePONumber()
-    {
-        $year = date('Y');
-        $lastPO = PurchaseOrder::whereYear('created_at', $year)
-            ->orderBy('id', 'desc')
-            ->first();
+        // Populate form fields
+        $this->supplier_id = $this->purchaseOrder->supplier_id;
+        $this->order_date = $this->purchaseOrder->order_date->format('Y-m-d');
+        $this->expected_delivery_date = $this->purchaseOrder->expected_delivery_date
+            ? $this->purchaseOrder->expected_delivery_date->format('Y-m-d')
+            : '';
+        $this->notes = $this->purchaseOrder->notes;
+        $this->status = $this->purchaseOrder->status;
 
-        $nextNumber = $lastPO ? (intval(substr($lastPO->po_number, -4)) + 1) : 1;
-
-        return 'PO-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        // Load existing items with proper type casting
+        foreach ($this->purchaseOrder->items as $item) {
+            $this->selectedProducts[] = [
+                'id' => $item->id,
+                'product_id' => $item->product_id,
+                'name' => $item->product->name,
+                'sku' => $item->product->sku,
+                'quantity' => (int) $item->quantity_ordered,
+                'unit_cost' => (float) $item->unit_cost,
+            ];
+        }
     }
 
     public function addProduct($productId)
@@ -81,6 +86,7 @@ class Create extends Component
         }
 
         $this->selectedProducts[] = [
+            'id' => null, // New item
             'product_id' => $product->id,
             'name' => $product->name,
             'sku' => $product->sku,
@@ -130,7 +136,7 @@ class Create extends Component
         });
     }
 
-    public function save($sendToSupplier = false)
+    public function update()
     {
         if (empty($this->selectedProducts)) {
             $this->dispatch('toast', [
@@ -140,58 +146,65 @@ class Create extends Component
             return;
         }
 
-        $this->status = $sendToSupplier ? 'sent' : 'draft';
-
         $this->validate();
 
         DB::transaction(function () {
-            $purchaseOrder = PurchaseOrder::create([
-                'po_number' => $this->po_number,
+            // Update purchase order
+            $this->purchaseOrder->update([
                 'supplier_id' => $this->supplier_id,
                 'order_date' => $this->order_date,
                 'expected_delivery_date' => $this->expected_delivery_date ?: null,
                 'status' => $this->status,
                 'total_amount' => $this->calculateTotal(),
                 'notes' => $this->notes ?: null,
-                'created_by' => Auth::id(),
             ]);
 
+            // Delete removed items
+            $existingItemIds = collect($this->selectedProducts)
+                ->filter(fn($item) => isset($item['id']) && $item['id'])
+                ->pluck('id');
+
+            $this->purchaseOrder->items()
+                ->whereNotIn('id', $existingItemIds)
+                ->delete();
+
+            // Update or create items
             foreach ($this->selectedProducts as $product) {
                 $quantity = (int) $product['quantity'];
                 $unitCost = (float) $product['unit_cost'];
 
-                $purchaseOrder->items()->create([
-                    'product_id' => $product['product_id'],
-                    'quantity_ordered' => $quantity,
-                    'unit_cost' => $unitCost,
-                    'subtotal' => $quantity * $unitCost,
-                ]);
+                if (isset($product['id']) && $product['id']) {
+                    // Update existing item
+                    $this->purchaseOrder->items()->where('id', $product['id'])->update([
+                        'product_id' => $product['product_id'],
+                        'quantity_ordered' => $quantity,
+                        'unit_cost' => $unitCost,
+                        'subtotal' => $quantity * $unitCost,
+                    ]);
+                } else {
+                    // Create new item
+                    $this->purchaseOrder->items()->create([
+                        'product_id' => $product['product_id'],
+                        'quantity_ordered' => $quantity,
+                        'unit_cost' => $unitCost,
+                        'subtotal' => $quantity * $unitCost,
+                    ]);
+                }
             }
         });
 
         $this->closeModal();
-        $this->dispatch('purchase-order-created');
-    }
-
-    public function saveAsDraft()
-    {
-        $this->save(false);
-    }
-
-    public function saveAndSend()
-    {
-        $this->save(true);
+        $this->dispatch('purchase-order-updated');
     }
 
     public function closeModal()
     {
-        $this->reset();
-        $this->dispatch('close-modal', 'create-purchase-order');
+        $this->dispatch('close-modal', 'edit-purchase-order-' . $this->purchaseOrder->id);
     }
 
     public function render()
     {
-        return view('livewire.purchase-orders.create', [
+        return view('livewire.purchase-orders.edit', [
             'suppliers' => Supplier::where('status', 'active')->orderBy('company_name')->get(),
             'searchResults' => $this->getSearchResults(),
             'totalAmount' => $this->calculateTotal(),

@@ -75,15 +75,6 @@ class Show extends Component
         $this->resetPage();
     }
 
-    public function getInitialsProperty()
-    {
-        $words = explode(' ', $this->supplier->company_name);
-        if (count($words) >= 2) {
-            return strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1));
-        }
-        return strtoupper(substr($this->supplier->company_name, 0, 2));
-    }
-
     public function getProductsProperty()
     {
         return $this->supplier->products()
@@ -103,10 +94,10 @@ class Show extends Component
         return [
             'total_products' => $this->supplier->products()->count(),
             'total_orders' => $this->supplier->purchaseOrders()->count(),
-            'pending_orders' => $this->supplier->purchaseOrders()->where('status', 'sent')->count(),
-            'total_spent' => $this->supplier->purchaseOrders()->where('status', 'received')->sum('total_amount'),
-            'active_products' => $this->supplier->products()->where('status', 'active')->count(),
-            'low_stock_products' => $this->supplier->products()->whereRaw('current_stock <= minimum_stock')->count(),
+            'pending_orders' => $this->supplier->pendingOrdersCount, 
+            'total_spent' => $this->supplier->totalSpent, 
+            'active_products' => $this->supplier->activeProductsCount, 
+            'low_stock_products' => $this->supplier->lowStockProductsCount, 
         ];
     }
 

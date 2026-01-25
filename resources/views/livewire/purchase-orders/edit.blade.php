@@ -1,9 +1,9 @@
-<x-modal name="create-purchase-order" :show="false" maxWidth="3xl">
+<x-modal name="edit-purchase-order-{{ $purchaseOrder->id }}" :show="true" maxWidth="4xl" focusable>
     <div class="p-6">
         <!-- Modal Header -->
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-                Create Purchase Order
+                Edit Purchase Order
             </h2>
             <button
                 type="button"
@@ -16,7 +16,7 @@
             </button>
         </div>
 
-        <form wire:submit.prevent="saveAsDraft">
+        <form wire:submit.prevent="update">
             <!-- Order Details Section -->
             <div class="mb-6">
                 <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Order Details</h3>
@@ -28,7 +28,7 @@
                         <x-text-input
                             id="po_number"
                             type="text"
-                            wire:model="po_number"
+                            value="{{ $purchaseOrder->po_number }}"
                             class="mt-1 bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
                             readonly
                         />
@@ -39,7 +39,7 @@
                         <x-input-label for="supplier_id" value="Supplier" required />
                         <select
                             id="supplier_id"
-                            wire:model.live="supplier_id"
+                            wire:model="supplier_id"
                             class="mt-1 w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900 dark:text-white"
                         >
                             <option value="">Select supplier</option>
@@ -78,7 +78,7 @@
 
             <!-- Add Products Section -->
             <div class="mb-6">
-                <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Add Products</h3>
+                <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Products</h3>
 
                 <!-- Product Search -->
                 <div class="relative">
@@ -208,22 +208,11 @@
                     Cancel
                 </x-secondary-button>
 
-                <button
-                    type="button"
-                    wire:click="saveAsDraft"
-                    class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg font-medium text-sm text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
-                >
+                <x-primary-button type="submit">
                     <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    Save as Draft
-                </button>
-
-                <x-primary-button type="button" wire:click="saveAndSend">
-                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                    </svg>
-                    Save & Send
+                    Update Purchase Order
                 </x-primary-button>
             </div>
         </form>

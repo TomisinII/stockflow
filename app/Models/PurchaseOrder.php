@@ -34,6 +34,21 @@ class PurchaseOrder extends Model
         'total_amount' => 'decimal:2',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($model) {
+            // Convert empty strings to null for nullable fields
+            if ($model->expected_delivery_date === '') {
+                $model->expected_delivery_date = null;
+            }
+            if ($model->notes === '') {
+                $model->notes = null;
+            }
+        });
+    }
+
     /**
      * Get the supplier for this purchase order
      */

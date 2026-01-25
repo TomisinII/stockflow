@@ -51,6 +51,8 @@ php artisan make:livewire Suppliers/Card
 php artisan make:livewire PurchaseOrders/Index
 php artisan make:livewire PurchaseOrders/Create
 php artisan make:livewire PurchaseOrders/Show
+php artisan make:livewire PurchaseOrders/Receive
+php artisan make:livewire PurchaseOrders/Edit
 php artisan make:livewire StockAdjustments/Index
 php artisan make:livewire StockAdjustments/Create
 php artisan make:livewire Reports/Index
