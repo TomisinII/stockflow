@@ -391,7 +391,6 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 (function() {
     let charts = { category: null, movement: null, topProducts: null };
@@ -535,6 +534,10 @@
     }
 
     document.addEventListener('livewire:navigated', () => setTimeout(initCharts, 300));
-    window.addEventListener('dateRangeUpdated', () => setTimeout(() => location.reload(), 500));
+
+    // FIXED: Re-render charts when date range updates without full page reload
+    window.addEventListener('dateRangeUpdated', () => {
+        setTimeout(initCharts, 100);
+    });
 })();
 </script>

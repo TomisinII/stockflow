@@ -253,19 +253,19 @@ notifications
 ## 📸 Screenshots
 
 ### Dashboard
-![Dashboard Overview](screenshots/dashboard.png)
+![Dashboard Overview](public/screenshots/dashboard.png)
 *Real-time summary of inventory status with quick actions*
 
 ### Product Management
-![Product List](screenshots/products.png)
+![Product List](public/screenshots/products.png)
 *Searchable and filterable product catalog with stock indicators*
 
 ### Purchase Orders
-![Purchase Order](screenshots/purchase-order.png)
+![Purchase Order](public/screenshots/purchase-order.png)
 *Complete PO workflow from creation to receiving*
 
 ### Reports
-![Analytics](screenshots/reports.png)
+![Analytics](public/screenshots/reports.png)
 *Visual analytics and comprehensive reporting*
 
 ---

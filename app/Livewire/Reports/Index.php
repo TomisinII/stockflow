@@ -20,7 +20,7 @@ class Index extends Component
     public function mount()
     {
         // Default to last 2 years for comprehensive data
-        $this->startDate = now()->subYears(2)->format('Y-m-d');
+        $this->startDate = now()->subYears(1)->format('Y-m-d');
         $this->endDate = now()->format('Y-m-d');
     }
 
@@ -36,14 +36,10 @@ class Index extends Component
 
     public function resetDateRange()
     {
-        $this->startDate = now()->subYears(2)->format('Y-m-d');
+        $this->startDate = now()->subYears(1)->format('Y-m-d');
         $this->endDate = now()->format('Y-m-d');
         $this->dispatch('dateRangeUpdated');
     }
-
-    // ========================================
-    // EXPORT METHODS
-    // ========================================
 
     /**
      * Export Current Stock Report
@@ -172,10 +168,6 @@ class Index extends Component
             return $this->exportSupplierPerformancePDF($suppliersData, $startDate, $endDate);
         }
     }
-
-    // ========================================
-    // CSV EXPORT IMPLEMENTATIONS
-    // ========================================
 
     private function exportCurrentStockCSV($products)
     {
@@ -440,9 +432,6 @@ class Index extends Component
         ]);
     }
 
-    // ========================================
-    // PDF EXPORT IMPLEMENTATIONS
-    // ========================================
 
     private function exportCurrentStockPDF($products)
     {
