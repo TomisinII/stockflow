@@ -1,4 +1,4 @@
-<x-modal name="receive-purchase-order-{{ $purchaseOrder->id }}" :show="true" maxWidth="4xl" focusable>
+<x-modal name="receive-purchase-order-{{ $purchaseOrder->id }}" :show="false" maxWidth="4xl">
     <div class="p-6">
         <!-- Modal Header -->
         <div class="flex items-center justify-between mb-6">
@@ -20,6 +20,34 @@
                 </svg>
             </button>
         </div>
+
+        <!-- Receiving Summary -->
+        @if(!empty($summary))
+            <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300">
+                            Receiving Summary
+                        </h3>
+                        <p class="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                            Total Ordered: {{ $summary['total_ordered'] ?? 0 }} units
+                            • Session Received: {{ $summary['current_session_received'] ?? 0 }} units
+                        </p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-lg font-semibold text-blue-800 dark:text-blue-300">
+                            {{ number_format($summary['current_session_progress'] ?? 0, 1) }}%
+                        </span>
+                        <div class="w-32 h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden mt-1">
+                            <div
+                                class="h-full bg-blue-600 dark:bg-blue-400 transition-all duration-300"
+                                style="width: {{ min($summary['current_session_progress'] ?? 0, 100) }}%"
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         <form wire:submit.prevent="receive">
             <!-- Receive Date -->
@@ -55,28 +83,41 @@
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Product</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">SKU</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ordered</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Received</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Receive Qty</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         @foreach($items as $index => $item)
                             <tr>
-                                <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                    {{ $item['product_name'] }}
+                                <td class="px-4 py-3">
+                                    <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ $item['product_name'] }}
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Unit: {{ $item['formatted_unit_cost'] ?? '₦' . number_format($item['unit_cost'], 2) }}
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                                     {{ $item['sku'] }}
                                 </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                    {{ $item['quantity_ordered'] }}
+                                <td class="px-4 py-3">
+                                    <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ $item['quantity_ordered'] }}
+                                    </div>
+                                    @if(($item['remaining_quantity'] ?? 0) > 0)
+                                    <div class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                        {{ $item['remaining_quantity'] }} remaining
+                                    </div>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     <input
                                         type="number"
                                         wire:model="items.{{ $index }}.quantity_received"
+                                        wire:change="validateQuantity({{ $index }})"
                                         min="0"
-                                        max="{{ $item['quantity_ordered'] }}"
-                                        class="w-24 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        max="{{ $item['remaining_quantity'] ?? $item['quantity_ordered'] }}"
+                                        class="w-24 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     >
                                     <x-input-error :messages="$errors->get('items.'.$index.'.quantity_received')" class="mt-1" />
                                 </td>

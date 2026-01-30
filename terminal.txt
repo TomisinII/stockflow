@@ -65,6 +65,12 @@ php artisan storage:link
 
 php artisan make:livewire Components/ConfirmModal
 
+composer require barryvdh/laravel-dompdf
+
+php artisan make:migration add_sent_at_to_purchase_orders_table --table=purchase_orders
+
+php artisan make:livewire StockAdjustments/QuickAdjust
+
 
 
 

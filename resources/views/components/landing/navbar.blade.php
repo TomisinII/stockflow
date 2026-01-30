@@ -26,12 +26,18 @@
 
             <!-- CTA Buttons -->
             <div class="hidden md:flex items-center space-x-4">
-                <a href="{{ route('login') }}" wire:navigate class="text-gray-700 hover:text-gray-900 font-medium transition-colors">
-                    Sign In
-                </a>
-                <a href="{{ route('register') }}" wire:navigate class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
-                    Start Free Trial
-                </a>
+                @auth
+                    <a href="{{ route('dashboard') }}" wire:navigate class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+                        Dashboard
+                    </a>
+                @else
+                    <a href="{{ route('login') }}" wire:navigate class="text-gray-700 hover:text-gray-900 font-medium transition-colors">
+                        Sign In
+                    </a>
+                    <a href="{{ route('register') }}" wire:navigate class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+                        Start Free Trial
+                    </a>
+                @endauth
             </div>
 
             <!-- Mobile Menu Button -->

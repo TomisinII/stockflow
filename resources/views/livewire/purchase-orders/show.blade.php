@@ -25,9 +25,10 @@
                 <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
                     {{ $purchaseOrder->po_number }}
                 </h1>
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {{ $this->getStatusBadgeClass($purchaseOrder->status) }}">
-                    {{ ucfirst($purchaseOrder->status) }}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {{ $purchaseOrder->status_badge['class'] }}">
+                    {{ $purchaseOrder->status_badge['label'] }}
                 </span>
+
             </div>
             <p class="text-sm text-gray-600 dark:text-gray-400">
                 Created by {{ $purchaseOrder->creator->name }} on {{ $purchaseOrder->created_at->format('M d, Y') }}
@@ -83,7 +84,7 @@
                         @endif
 
                         <button
-                            wire:click="downloadPdf"
+                            wire:click="downloadPdf({{ $purchaseOrder->id }})"
                             @click="open = false"
                             class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
@@ -95,7 +96,7 @@
 
                         @if($purchaseOrder->status === 'draft')
                             <button
-                                wire:click="changeStatus('sent')"
+                                wire:click="sendOrder"
                                 @click="open = false"
                                 class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
@@ -108,7 +109,7 @@
 
                         @if(in_array($purchaseOrder->status, ['draft', 'sent']))
                             <button
-                                wire:click="changeStatus('cancelled')"
+                                wire:click="cancelOrder"
                                 @click="open = false"
                                 class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
@@ -327,12 +328,12 @@
                         <div>
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-sm text-gray-600 dark:text-gray-400">Fulfillment</span>
-                                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $progressPercentage }}%</span>
+                                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $purchaseOrder->receiving_progress }}%</span>
                             </div>
                             <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                 <div
                                     class="bg-green-600 dark:bg-green-500 h-2 rounded-full transition-all"
-                                    style="width: {{ $progressPercentage }}%"
+                                    style="width: {{ $purchaseOrder->receiving_progress }}%"
                                 ></div>
                             </div>
                         </div>

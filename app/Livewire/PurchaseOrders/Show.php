@@ -3,9 +3,9 @@
 namespace App\Livewire\PurchaseOrders;
 
 use App\Models\PurchaseOrder;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Livewire\Component;
 use Livewire\Attributes\On;
-use Illuminate\Support\Facades\DB;
 
 class Show extends Component
 {
@@ -13,23 +13,34 @@ class Show extends Component
     public $showEditModal = false;
     public $showReceiveModal = false;
     public $purchaseOrderToDelete = null;
-    public $activeTab = 'details'; // details, activity
 
     public function mount(PurchaseOrder $purchaseOrder)
     {
-        // FIXED: Changed 'createdBy' to 'creator' and 'receivedBy' to 'receiver'
-        $this->purchaseOrder = $purchaseOrder->load(['supplier', 'items.product', 'creator', 'receiver']);
+        $this->purchaseOrder = $purchaseOrder->load([
+            'supplier',
+            'items.product.category',
+            'creator',
+            'receiver'
+        ]);
     }
 
     public function openEditModal()
     {
+        if (!$this->purchaseOrder->canBeEdited()) {
+            $this->dispatch('toast', [
+                'type' => 'warning',
+                'message' => 'Only draft purchase orders can be edited.'
+            ]);
+            return;
+        }
+
         $this->showEditModal = true;
         $this->dispatch('open-modal', 'edit-purchase-order-' . $this->purchaseOrder->id);
     }
 
     public function openReceiveModal()
     {
-        if ($this->purchaseOrder->status !== 'sent') {
+        if (!$this->purchaseOrder->canBeReceived()) {
             $this->dispatch('toast', [
                 'type' => 'warning',
                 'message' => 'Only purchase orders with "Sent" status can be received.'
@@ -46,6 +57,11 @@ class Show extends Component
     {
         $this->purchaseOrder->refresh();
         $this->showEditModal = false;
+
+        $this->dispatch('toast', [
+            'type' => 'success',
+            'message' => 'Purchase order updated successfully!'
+        ]);
     }
 
     #[On('purchase-order-received')]
@@ -60,34 +76,60 @@ class Show extends Component
         ]);
     }
 
-    public function changeStatus($status)
+    public function sendOrder()
     {
-        if (!in_array($status, ['draft', 'sent', 'cancelled'])) {
-            return;
-        }
-
-        // Validate status transitions
-        if ($this->purchaseOrder->status === 'received' && $status !== 'received') {
+        if (!$this->purchaseOrder->canBeSent()) {
             $this->dispatch('toast', [
                 'type' => 'error',
-                'message' => 'Cannot change status of a received purchase order.'
+                'message' => 'Cannot send this purchase order. Please ensure it has items.'
             ]);
             return;
         }
 
-        $this->purchaseOrder->update(['status' => $status]);
+        $this->purchaseOrder->send();
         $this->purchaseOrder->refresh();
 
-        $statusLabel = ucfirst($status);
         $this->dispatch('toast', [
             'type' => 'success',
-            'message' => "Purchase order status changed to {$statusLabel}"
+            'message' => 'Purchase order marked as sent!'
+        ]);
+    }
+
+    public function cancelOrder()
+    {
+        if (!$this->purchaseOrder->canBeCancelled()) {
+            $this->dispatch('toast', [
+                'type' => 'error',
+                'message' => 'This purchase order cannot be cancelled.'
+            ]);
+            return;
+        }
+
+        $this->dispatch('showConfirmModal', [
+            'title' => 'Cancel Purchase Order',
+            'message' => "Are you sure you want to cancel PO '{$this->purchaseOrder->po_number}'? This action cannot be undone.",
+            'confirmText' => 'Yes, Cancel Order',
+            'cancelText' => 'Keep Order',
+            'confirmColor' => 'red',
+            'icon' => 'warning',
+        ]);
+
+        $this->purchaseOrderToDelete = 'cancel';
+    }
+
+    public function duplicateOrder()
+    {
+        $newPO = $this->purchaseOrder->duplicate();
+
+        return redirect()->route('purchase_orders.show', $newPO)->with('toast', [
+            'type' => 'success',
+            'message' => 'Purchase order duplicated successfully!'
         ]);
     }
 
     public function confirmDelete()
     {
-        $this->purchaseOrderToDelete = $this->purchaseOrder->id;
+        $this->purchaseOrderToDelete = 'delete';
 
         $this->dispatch('showConfirmModal', [
             'title' => 'Delete Purchase Order',
@@ -102,14 +144,24 @@ class Show extends Component
     #[On('confirmed')]
     public function handleConfirmed()
     {
-        if ($this->purchaseOrderToDelete) {
+        if ($this->purchaseOrderToDelete === 'delete') {
             $this->purchaseOrder->delete();
 
-            return redirect()->route('purchase-orders.index')->with('toast', [
+            return redirect()->route('purchase_orders.index')->with('toast', [
                 'type' => 'success',
                 'message' => 'Purchase order deleted successfully!'
             ]);
+        } elseif ($this->purchaseOrderToDelete === 'cancel') {
+            $this->purchaseOrder->cancel();
+            $this->purchaseOrder->refresh();
+
+            $this->dispatch('toast', [
+                'type' => 'success',
+                'message' => 'Purchase order cancelled successfully!'
+            ]);
         }
+
+        $this->purchaseOrderToDelete = null;
     }
 
     #[On('cancelled')]
@@ -118,44 +170,26 @@ class Show extends Component
         $this->purchaseOrderToDelete = null;
     }
 
-    public function setActiveTab($tab)
+    public function downloadPdf($purchaseOrderId)
     {
-        $this->activeTab = $tab;
-    }
+        $purchaseOrder = PurchaseOrder::with(['supplier', 'items.product', 'creator'])
+            ->findOrFail($purchaseOrderId);
 
-    public function downloadPdf()
-    {
-        $this->dispatch('toast', [
-            'type' => 'info',
-            'message' => 'PDF download feature coming soon!'
+        $pdf = Pdf::loadView('pdf.purchase-order', [
+            'purchaseOrder' => $purchaseOrder
         ]);
-    }
 
-    public function getStatusBadgeClass($status)
-    {
-        return match($status) {
-            'draft' => 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-600',
-            'sent' => 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
-            'received' => 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-800',
-            'cancelled' => 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border border-red-200 dark:border-red-800',
-            default => 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
-        };
-    }
+        $fileName = $purchaseOrder->po_number . '-' . now()->format('Y-m-d') . '.pdf';
 
-    public function getProgressPercentage()
-    {
-        $totalOrdered = $this->purchaseOrder->items->sum('quantity_ordered');
-        $totalReceived = $this->purchaseOrder->items->sum('quantity_received');
-
-        if ($totalOrdered == 0) return 0;
-
-        return round(($totalReceived / $totalOrdered) * 100);
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, $fileName, [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 
     public function render()
     {
-        return view('livewire.purchase-orders.show', [
-            'progressPercentage' => $this->getProgressPercentage(),
-        ]);
+        return view('livewire.purchase-orders.show');
     }
 }

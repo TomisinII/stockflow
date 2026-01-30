@@ -7,9 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StockAdjustment extends Model
 {
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'product_id',
         'adjustment_type',
@@ -21,73 +18,50 @@ class StockAdjustment extends Model
         'adjustment_date',
     ];
 
-    /**
-     * The attributes that should be cast.
-     */
     protected $casts = [
-        'adjustment_date' => 'date',
+        'adjustment_date' => 'datetime',
         'quantity' => 'integer',
     ];
 
-    /**
-     * Get the product this adjustment belongs to
-     */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
-    /**
-     * Get the user who made this adjustment
-     */
     public function adjuster(): BelongsTo
     {
         return $this->belongsTo(User::class, 'adjusted_by');
     }
 
-    /**
-     * Scope to get stock in adjustments
-     */
+    // Scopes
     public function scopeStockIn($query)
     {
         return $query->where('adjustment_type', 'in');
     }
 
-    /**
-     * Scope to get stock out adjustments
-     */
     public function scopeStockOut($query)
     {
         return $query->where('adjustment_type', 'out');
     }
 
-    /**
-     * Scope to get corrections
-     */
     public function scopeCorrection($query)
     {
         return $query->where('adjustment_type', 'correction');
     }
 
-    /**
-     * Scope to filter by date range
-     */
-    public function scopeDateRange($query, $startDate, $endDate)
+    public function scopeSearch($query, $search)
     {
-        return $query->whereBetween('adjustment_date', [$startDate, $endDate]);
+        return $query->where(function($q) use ($search) {
+            $q->where('reference', 'like', '%' . $search . '%')
+                ->orWhere('reason', 'like', '%' . $search . '%')
+                ->orWhereHas('product', function($productQuery) use ($search) {
+                    $productQuery->where('name', 'like', '%' . $search . '%')
+                                ->orWhere('sku', 'like', '%' . $search . '%');
+                });
+        });
     }
 
-    /**
-     * Scope to get recent adjustments
-     */
-    public function scopeRecent($query, $days = 7)
-    {
-        return $query->where('adjustment_date', '>=', now()->subDays($days));
-    }
-
-    /**
-     * Get formatted adjustment type for display
-     */
+    // Accessors
     public function getFormattedTypeAttribute(): string
     {
         return match($this->adjustment_type) {
@@ -98,37 +72,90 @@ class StockAdjustment extends Model
         };
     }
 
-    /**
-     * Get badge color based on adjustment type
-     */
     public function getTypeBadgeAttribute(): array
     {
         return match($this->adjustment_type) {
             'in' => [
                 'label' => 'Stock In',
-                'class' => 'bg-green-100 text-green-800',
+                'icon' => '↑',
+                'class' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
             ],
             'out' => [
                 'label' => 'Stock Out',
-                'class' => 'bg-red-100 text-red-800',
+                'icon' => '↓',
+                'class' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
             ],
             'correction' => [
                 'label' => 'Correction',
-                'class' => 'bg-blue-100 text-blue-800',
+                'icon' => '↻',
+                'class' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-600',
             ],
             default => [
                 'label' => ucfirst($this->adjustment_type),
-                'class' => 'bg-gray-100 text-gray-800',
+                'icon' => '',
+                'class' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-600',
             ],
         };
     }
 
-    /**
-     * Get absolute quantity value
-     * (In case quantity is stored as negative for 'out')
-     */
     public function getAbsoluteQuantityAttribute(): int
     {
         return abs($this->quantity);
+    }
+
+    public function getFormattedQuantityAttribute(): string
+    {
+        if ($this->adjustment_type === 'in') {
+            return '+' . $this->absolute_quantity;
+        } elseif ($this->adjustment_type === 'out') {
+            return '-' . $this->absolute_quantity;
+        }
+
+        return ($this->quantity >= 0 ? '+' : '') . $this->quantity;
+    }
+
+    public function getQuantityColorAttribute(): string
+    {
+        if ($this->adjustment_type === 'in') {
+            return 'text-green-600 dark:text-green-400';
+        } elseif ($this->adjustment_type === 'out') {
+            return 'text-red-600 dark:text-red-400';
+        }
+
+        return $this->quantity >= 0
+            ? 'text-green-600 dark:text-green-400'
+            : 'text-red-600 dark:text-red-400';
+    }
+
+    public function getStockBeforeAttribute(): int
+    {
+        if (!$this->product) {
+            return 0;
+        }
+        return $this->product->current_stock - $this->quantity;
+    }
+
+    public function getStockAfterAttribute(): int
+    {
+        if (!$this->product) {
+            return 0;
+        }
+        return $this->product->current_stock;
+    }
+
+    public function getReasonDisplayAttribute(): string
+    {
+        return match($this->reason) {
+            'purchase' => 'Purchase Order',
+            'sale' => 'Sale',
+            'damaged' => 'Damaged',
+            'expired' => 'Expired',
+            'theft' => 'Theft',
+            'stocktake' => 'Stocktake',
+            'return' => 'Customer Return',
+            'transfer_in' => 'Transfer In',
+            'transfer_out' => 'Transfer Out',
+            default => ucfirst(str_replace('_', ' ', $this->reason)),
+        };
     }
 }

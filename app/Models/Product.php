@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 
 class Product extends Model
 {
@@ -74,6 +75,11 @@ class Product extends Model
         return $this->hasMany(PurchaseOrderItem::class);
     }
 
+    public function recentAdjustments()
+    {
+        return $this->stockAdjustments()->latest()->take(10);
+    }
+    
     /**
      * Scope to get only active products
      * Usage: Product::active()->get()
@@ -176,5 +182,22 @@ class Product extends Model
     public function getStockValueAttribute(): float
     {
         return $this->cost_price * $this->current_stock;
+    }
+
+    public function addStock($quantity, $reason, $reference = null, $notes = null, $adjustedBy = null, $adjustmentDate = null)
+    {
+        $this->increment('current_stock', $quantity);
+
+        return $this->stockAdjustments()->create([
+            'adjustment_type' => 'in',
+            'quantity' => $quantity,
+            'previous_stock' => $this->current_stock - $quantity,
+            'new_stock' => $this->current_stock,
+            'reason' => $reason,
+            'reference' => $reference,
+            'notes' => $notes,
+            'adjusted_by' => $adjustedBy ?? Auth::id(),
+            'adjustment_date' => $adjustmentDate ?? now(),
+        ]);
     }
 }
