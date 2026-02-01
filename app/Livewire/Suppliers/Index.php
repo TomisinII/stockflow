@@ -3,6 +3,8 @@
 namespace App\Livewire\Suppliers;
 
 use App\Models\Supplier;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\On;
@@ -18,6 +20,13 @@ class Index extends Component
     public $showEditModal = false;
     public $selectedSupplierId = null;
     public $supplierToDelete = null;
+
+    protected NotificationService $notificationService;
+
+    public function boot(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
 
     public function mount()
     {
@@ -69,9 +78,23 @@ class Index extends Component
     {
         if ($this->supplierToDelete) {
             $supplier = Supplier::findOrFail($this->supplierToDelete);
+            $supplierName = $supplier->company_name;
             $supplier->delete();
 
             $this->supplierToDelete = null;
+
+            // Notify admins and managers about supplier deletion
+            $this->notificationService->notifyAdminsAndManagers(
+                type: 'info',
+                title: 'Supplier Deleted',
+                message: "Supplier '{$supplierName}' has been deleted by " . Auth::user()->name . ".",
+                data: [
+                    'deleted_by' => Auth::user()->name,
+                    'supplier_name' => $supplierName,
+                ]
+            );
+
+            $this->dispatch('notification-created');
 
             $this->dispatch('toast', [
                 'type' => 'success',
@@ -247,6 +270,22 @@ class Index extends Component
 
                 fclose($file);
             };
+
+            // Create notification about export
+            $notificationService = app(NotificationService::class);
+            $notificationService->create(
+                Auth::user(),
+                'info',
+                'Suppliers Export Completed',
+                "You exported suppliers data to CSV at " . now()->format('g:i A'),
+                [
+                    'action' => 'export_suppliers',
+                    'filename' => $filename,
+                    'filters' => $this->getAppliedFiltersText(),
+                ]
+            );
+
+            $this->dispatch('notification-created');
 
             return new StreamedResponse($callback, 200, $headers);
 

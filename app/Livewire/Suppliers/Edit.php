@@ -3,6 +3,8 @@
 namespace App\Livewire\Suppliers;
 
 use App\Models\Supplier;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class Edit extends Component
@@ -31,6 +33,8 @@ class Edit extends Component
         'Net 15',
     ];
 
+    protected NotificationService $notificationService;
+
     protected $rules = [
         'company_name' => 'required|string|max:255',
         'contact_person' => 'nullable|string|max:255',
@@ -45,6 +49,11 @@ class Edit extends Component
         'status' => 'required|in:active,inactive',
         'notes' => 'nullable|string',
     ];
+
+    public function boot(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
 
     public function mount($supplierId)
     {
@@ -68,6 +77,14 @@ class Edit extends Component
     {
         $this->validate();
 
+        // Track changes for notification
+        $changes = [];
+        $originalData = [
+            'company_name' => $this->supplier->company_name,
+            'status' => $this->supplier->status,
+            'payment_terms' => $this->supplier->payment_terms,
+        ];
+
         $this->supplier->update([
             'company_name' => $this->company_name,
             'contact_person' => $this->contact_person,
@@ -82,6 +99,36 @@ class Edit extends Component
             'status' => $this->status,
             'notes' => $this->notes,
         ]);
+
+        // Detect significant changes
+        if ($originalData['company_name'] !== $this->company_name) {
+            $changes[] = "name changed from '{$originalData['company_name']}' to '{$this->company_name}'";
+        }
+        if ($originalData['status'] !== $this->status) {
+            $changes[] = "status changed to '{$this->status}'";
+        }
+        if ($originalData['payment_terms'] !== $this->payment_terms && $this->payment_terms) {
+            $changes[] = "payment terms updated to '{$this->payment_terms}'";
+        }
+
+        // Notify admins and managers if there were significant changes
+        if (!empty($changes)) {
+            $changesList = implode(', ', $changes);
+            $this->notificationService->notifyAdminsAndManagers(
+                type: 'info',
+                title: 'Supplier Updated',
+                message: "{$this->supplier->company_name} has been updated by " . Auth::user()->name . ". Changes: {$changesList}.",
+                data: [
+                    'supplier_id' => $this->supplier->id,
+                    'supplier_name' => $this->supplier->company_name,
+                    'updated_by' => Auth::user()->name,
+                    'changes' => $changes,
+                    'link' => route('suppliers.show', $this->supplier),
+                ]
+            );
+
+            $this->dispatch('notification-created');
+        }
 
         $this->closeModal();
         $this->dispatch('supplier-updated');

@@ -3,6 +3,8 @@
 namespace App\Livewire\Suppliers;
 
 use App\Models\Supplier;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class Create extends Component
@@ -30,6 +32,8 @@ class Create extends Component
         'Net 15',
     ];
 
+    protected NotificationService $notificationService;
+
     protected $rules = [
         'company_name' => 'required|string|max:255',
         'contact_person' => 'nullable|string|max:255',
@@ -51,11 +55,16 @@ class Create extends Component
         'country.required' => 'Country is required',
     ];
 
+    public function boot(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     public function save()
     {
         $this->validate();
 
-        Supplier::create([
+        $supplier = Supplier::create([
             'company_name' => $this->company_name,
             'contact_person' => $this->contact_person,
             'email' => $this->email,
@@ -70,6 +79,20 @@ class Create extends Component
             'notes' => $this->notes,
         ]);
 
+        // Notify admins and managers about new supplier
+        $this->notificationService->notifyAdminsAndManagers(
+            type: 'info',
+            title: 'New Supplier Added',
+            message: "{$supplier->company_name} has been added as a new supplier by " . Auth::user()->name . ".",
+            data: [
+                'supplier_id' => $supplier->id,
+                'supplier_name' => $supplier->company_name,
+                'created_by' => Auth::user()->name,
+                'link' => route('suppliers.show', $supplier),
+            ]
+        );
+
+        $this->dispatch('notification-created');
         $this->dispatch('supplier-created');
         $this->reset();
     }

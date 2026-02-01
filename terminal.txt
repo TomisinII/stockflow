@@ -1,6 +1,7 @@
 php artisan migrate
 
 composer require spatie/laravel-permission
+composer require picqer/php-barcode-generator
 php artisan vendor:publish --provider="Spatie\Permission\Providers\PermissionServiceProvider"
 php artisan migrate
 
@@ -57,6 +58,7 @@ php artisan make:livewire StockAdjustments/Index
 php artisan make:livewire StockAdjustments/Create
 php artisan make:livewire Reports/Index
 php artisan make:livewire Notifications/Index
+php artisan make:livewire Notifications/Bell
 php artisan make:livewire Users/Index
 php artisan make:livewire Users/Create
 php artisan make:livewire Settings/Index
@@ -70,6 +72,7 @@ composer require barryvdh/laravel-dompdf
 php artisan make:migration add_sent_at_to_purchase_orders_table --table=purchase_orders
 
 php artisan make:livewire StockAdjustments/QuickAdjust
+
 
 
 

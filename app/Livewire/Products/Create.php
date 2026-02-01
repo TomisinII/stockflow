@@ -5,9 +5,11 @@ namespace App\Livewire\Products;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\Supplier;
+use App\Services\BarcodeService;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Illuminate\Support\Str;
 
 class Create extends Component
 {
@@ -19,7 +21,7 @@ class Create extends Component
     public $description = '';
     public $category_id = '';
     public $supplier_id = '';
-    public $unit_of_measure = '';
+    public $unit_of_measure = 'pieces';
     public $cost_price = '';
     public $selling_price = '';
     public $current_stock = 0;
@@ -29,6 +31,7 @@ class Create extends Component
     public $status = 'active';
 
     public $autoGenerateSku = true;
+    public $autoGenerateBarcode = true;
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -58,6 +61,17 @@ class Create extends Component
         'maximum_stock' => 'maximum stock',
     ];
 
+    protected $messages = [
+        'name.required' => 'Product name is required',
+        'sku.required' => 'SKU is required',
+        'sku.unique' => 'This SKU already exists',
+        'barcode.unique' => 'This barcode already exists',
+        'category_id.required' => 'Please select a category',
+        'unit_of_measure.required' => 'Unit of measure is required',
+        'cost_price.required' => 'Cost price is required',
+        'selling_price.required' => 'Selling price is required',
+    ];
+
     public function updatedName($value)
     {
         if ($this->autoGenerateSku && empty($this->sku)) {
@@ -65,53 +79,170 @@ class Create extends Component
         }
     }
 
+    public function updatedCategoryId($value)
+    {
+        if ($this->autoGenerateSku && !empty($this->name)) {
+            $this->generateSku();
+        }
+    }
+
+    public function updatedSupplierId($value)
+    {
+        if ($this->autoGenerateSku && !empty($this->name)) {
+            $this->generateSku();
+        }
+    }
+
     public function generateSku()
     {
-        $prefix = 'APL';
-        $random = strtoupper(Str::random(8));
-        $this->sku = $prefix . '-' . $random;
+        try {
+            $category = Category::find($this->category_id);
+            $supplier = $this->supplier_id ? Supplier::find($this->supplier_id) : null;
+
+            $categoryPrefix = $category
+                ? strtoupper(substr($category->name, 0, 4))
+                : 'GEN';
+
+            $supplierPrefix = $supplier
+                ? strtoupper(substr($supplier->company_name, 0, 4))
+                : 'NONE';
+
+            // Generate random alphanumeric
+            $random = strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 5));
+
+            $sku = "{$categoryPrefix}-{$supplierPrefix}-{$random}";
+
+            // Ensure uniqueness
+            while (Product::where('sku', $sku)->exists()) {
+                $random = strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 5));
+                $sku = "{$categoryPrefix}-{$supplierPrefix}-{$random}";
+            }
+
+            $this->sku = $sku;
+
+            $this->dispatch('toast', [
+                'message' => 'SKU generated successfully',
+                'type' => 'success'
+            ]);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', [
+                'message' => 'Failed to generate SKU',
+                'type' => 'error'
+            ]);
+        }
     }
 
     public function generateBarcode()
     {
-        // Generate a simple numeric barcode (EAN-13 format)
-        $this->barcode = '9' . str_pad(rand(0, 999999999999), 12, '0', STR_PAD_LEFT);
+        try {
+            $barcodeService = app(BarcodeService::class);
+            $this->barcode = $barcodeService->generateUniqueBarcode();
+
+            $this->dispatch('toast', [
+                'message' => 'Barcode generated successfully',
+                'type' => 'success'
+            ]);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', [
+                'message' => 'Failed to generate barcode',
+                'type' => 'error'
+            ]);
+        }
     }
 
     public function save()
     {
         $this->validate();
 
-        $data = [
-            'name' => $this->name,
-            'sku' => $this->sku,
-            'barcode' => $this->barcode,
-            'description' => $this->description,
-            'category_id' => $this->category_id,
-            'supplier_id' => $this->supplier_id,
-            'unit_of_measure' => $this->unit_of_measure,
-            'cost_price' => $this->cost_price,
-            'selling_price' => $this->selling_price,
-            'current_stock' => $this->current_stock,
-            'minimum_stock' => $this->minimum_stock,
-            'maximum_stock' => $this->maximum_stock,
-            'status' => $this->status,
-        ];
+        try {
+            $data = [
+                'name' => $this->name,
+                'sku' => $this->sku,
+                'barcode' => $this->barcode,
+                'description' => $this->description,
+                'category_id' => $this->category_id,
+                'supplier_id' => $this->supplier_id,
+                'unit_of_measure' => $this->unit_of_measure,
+                'cost_price' => $this->cost_price,
+                'selling_price' => $this->selling_price,
+                'current_stock' => $this->current_stock,
+                'minimum_stock' => $this->minimum_stock,
+                'maximum_stock' => $this->maximum_stock,
+                'status' => $this->status,
+            ];
 
-        if ($this->image) {
-            $data['image_path'] = $this->image->store('products', 'public');
+            if ($this->image) {
+                $data['image_path'] = $this->image->store('products', 'public');
+            }
+
+            $product = Product::create($data);
+
+            // Check if stock is below minimum and create notification if needed
+            if ($product->current_stock < $product->minimum_stock) {
+                $notificationService = app(NotificationService::class);
+
+                if ($product->current_stock == 0) {
+                    // Out of stock notification
+                    $notificationService->notifyAdminsAndManagers(
+                        'danger',
+                        'Critical: Product Out of Stock',
+                        "New product '{$product->name}' was added with zero stock. Immediate action required.",
+                        [
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'link' => route('products.show', $product),
+                        ]
+                    );
+
+                    $this->dispatch('notification-created');
+                } else {
+                    // Low stock notification
+                    $notificationService->notifyAdminsAndManagers(
+                        'warning',
+                        'Low Stock Alert',
+                        "New product '{$product->name}' was added with low stock ({$product->current_stock}/{$product->minimum_stock} units).",
+                        [
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'current_stock' => $product->current_stock,
+                            'minimum_stock' => $product->minimum_stock,
+                            'link' => route('products.show', $product),
+                        ]
+                    );
+
+                    $this->dispatch('notification-created');
+                }
+            }
+
+            // Notify admins and managers about new product
+            $notificationService = app(NotificationService::class);
+            $notificationService->notifyAdminsAndManagers(
+                'info',
+                'New Product Added',
+                "'{$product->name}' has been added to inventory by " . Auth::user()->name,
+                [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'created_by' => Auth::user()->name,
+                    'link' => route('products.show', $product),
+                ]
+            );
+
+            $this->dispatch('notification-created');
+            $this->dispatch('close-modal', 'create-product');
+            $this->dispatch('product-created');
+            $this->reset();
+
+            $this->dispatch('toast', [
+                'message' => 'Product created successfully.',
+                'type' => 'success'
+            ]);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', [
+                'message' => 'Failed to create product: ' . $e->getMessage(),
+                'type' => 'error'
+            ]);
         }
-
-        Product::create($data);
-
-        $this->dispatch('close-modal', 'create-product');
-        $this->dispatch('product-created');
-        $this->reset();
-
-        $this->dispatch('toast', [
-            'message' => 'Product created successfully.',
-            'type' => 'success'
-        ]);
     }
 
     public function closeModal()

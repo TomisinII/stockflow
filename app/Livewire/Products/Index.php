@@ -5,6 +5,9 @@ namespace App\Livewire\Products;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\Supplier;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\On;
@@ -44,6 +47,53 @@ class Index extends Component
     {
         if (request()->query('action') === 'create-product') {
             $this->dispatch('open-modal', 'create-product');
+        }
+
+        // Check for low stock and out of stock items on page load
+        $this->checkStockLevelsOnLoad();
+    }
+
+    /**
+     * Check stock levels when page loads and create notifications if needed
+     */
+    protected function checkStockLevelsOnLoad()
+    {
+        try {
+            $notificationService = app(NotificationService::class);
+
+            // Get products that are out of stock
+            $outOfStockProducts = Product::outOfStock()
+                ->where('status', 'active')
+                ->get();
+
+            // Only create notifications if there are critical stock issues
+            // and user is admin or manager
+            if (Auth::user()->hasAnyRole(['Admin', 'Manager'])) {
+
+                // Check if we already notified about these today
+                $todayNotifications = \App\Models\Notification::where('user_id', Auth::id())
+                    ->whereDate('created_at', today())
+                    ->where('type', 'danger')
+                    ->where('title', 'like', '%Out of Stock%')
+                    ->count();
+
+                // Only notify once per day about general stock issues
+                if ($todayNotifications === 0 && $outOfStockProducts->count() > 0) {
+                    $notificationService->create(
+                        Auth::user(),
+                        'danger',
+                        'Stock Alert: ' . $outOfStockProducts->count() . ' Products Out of Stock',
+                        "You have {$outOfStockProducts->count()} products that are currently out of stock. Please review and reorder.",
+                        [
+                            'out_of_stock_count' => $outOfStockProducts->count(),
+                            'link' => route('products.index', ['stockFilter' => 'out']),
+                        ]
+                    );
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently fail - don't interrupt page load
+            Log::error('Failed to check stock levels on load: ' . $e->getMessage());
         }
     }
 
@@ -117,9 +167,14 @@ class Index extends Component
         $product = Product::findOrFail($productId);
         $this->productToDelete = $productId;
 
+        $stockWarning = '';
+        if ($product->current_stock > 0) {
+            $stockWarning = " This product has {$product->current_stock} units in stock.";
+        }
+
         $this->dispatch('showConfirmModal', [
             'title' => 'Delete Product',
-            'message' => "Are you sure you want to delete '{$product->name}'? This action cannot be undone and all associated data will be permanently removed.",
+            'message' => "Are you sure you want to delete '{$product->name}'?{$stockWarning} This action cannot be undone and all associated data will be permanently removed.",
             'confirmText' => 'Delete',
             'confirmColor' => 'red',
             'cancelText' => 'Cancel',
@@ -133,14 +188,45 @@ class Index extends Component
             $product = Product::find($this->productToDelete);
 
             if ($product) {
-                $product->delete();
+                try {
+                    $productName = $product->name;
+                    $productStock = $product->current_stock;
+                    $productValue = $product->stockValue;
 
-                $this->dispatch('toast', [
-                    'message' => 'Product deleted successfully.',
-                    'type' => 'success'
-                ]);
+                    // Delete the product
+                    $product->delete();
 
-                $this->productToDelete = null;
+                    // Notify admins and managers about product deletion
+                    $notificationService = app(NotificationService::class);
+                    $notificationService->notifyAdminsAndManagers(
+                        'warning',
+                        'Product Deleted',
+                        "'{$productName}' was deleted by " . Auth::user()->name .
+                        ($productStock > 0 ? " ({$productStock} units valued at ₦" . number_format($productValue, 2) . " removed from inventory)" : ""),
+                        [
+                            'product_name' => $productName,
+                            'deleted_by' => Auth::user()->name,
+                            'stock_removed' => $productStock,
+                            'value_removed' => $productValue,
+                        ]
+                    );
+
+                    $this->dispatch('notification-created');
+
+                    $this->dispatch('toast', [
+                        'message' => 'Product deleted successfully.',
+                        'type' => 'success'
+                    ]);
+
+                    $this->productToDelete = null;
+                    $this->dispatch('product-deleted');
+
+                } catch (\Exception $e) {
+                    $this->dispatch('toast', [
+                        'message' => 'Failed to delete product: ' . $e->getMessage(),
+                        'type' => 'error'
+                    ]);
+                }
             }
         }
     }
@@ -148,6 +234,100 @@ class Index extends Component
     public function handleCancelled()
     {
         $this->productToDelete = null;
+    }
+
+    /**
+     * Bulk activate selected products
+     */
+    public function bulkActivate()
+    {
+        try {
+            if (empty($this->selectedProducts)) {
+                $this->dispatch('toast', [
+                    'message' => 'Please select products first',
+                    'type' => 'warning'
+                ]);
+                return;
+            }
+
+            $count = Product::whereIn('id', $this->selectedProducts)
+                ->update(['status' => 'active']);
+
+            $notificationService = app(NotificationService::class);
+            $notificationService->notifyAdminsAndManagers(
+                'info',
+                'Bulk Product Activation',
+                Auth::user()->name . " activated {$count} products",
+                [
+                    'action' => 'bulk_activate',
+                    'count' => $count,
+                    'performed_by' => Auth::user()->name,
+                ]
+            );
+
+            $this->selectedProducts = [];
+            $this->selectAll = false;
+
+            $this->dispatch('toast', [
+                'message' => "{$count} products activated successfully",
+                'type' => 'success'
+            ]);
+
+            $this->dispatch('product-updated');
+
+        } catch (\Exception $e) {
+            $this->dispatch('toast', [
+                'message' => 'Failed to activate products: ' . $e->getMessage(),
+                'type' => 'error'
+            ]);
+        }
+    }
+
+    /**
+     * Bulk deactivate selected products
+     */
+    public function bulkDeactivate()
+    {
+        try {
+            if (empty($this->selectedProducts)) {
+                $this->dispatch('toast', [
+                    'message' => 'Please select products first',
+                    'type' => 'warning'
+                ]);
+                return;
+            }
+
+            $count = Product::whereIn('id', $this->selectedProducts)
+                ->update(['status' => 'inactive']);
+
+            $notificationService = app(NotificationService::class);
+            $notificationService->notifyAdminsAndManagers(
+                'warning',
+                'Bulk Product Deactivation',
+                Auth::user()->name . " deactivated {$count} products",
+                [
+                    'action' => 'bulk_deactivate',
+                    'count' => $count,
+                    'performed_by' => Auth::user()->name,
+                ]
+            );
+
+            $this->selectedProducts = [];
+            $this->selectAll = false;
+
+            $this->dispatch('toast', [
+                'message' => "{$count} products deactivated successfully",
+                'type' => 'success'
+            ]);
+
+            $this->dispatch('product-updated');
+
+        } catch (\Exception $e) {
+            $this->dispatch('toast', [
+                'message' => 'Failed to deactivate products: ' . $e->getMessage(),
+                'type' => 'error'
+            ]);
+        }
     }
 
     public function exportProducts()
@@ -172,6 +352,7 @@ class Index extends Component
                 // Report Header
                 fputcsv($file, ['StockFlow Products Export']);
                 fputcsv($file, ['Generated on: ' . now()->format('F d, Y H:i:s')]);
+                fputcsv($file, ['Generated by: ' . Auth::user()->name]);
                 fputcsv($file, ['Filters Applied: ' . $this->getAppliedFiltersText()]);
                 fputcsv($file, []); // Empty row
 
@@ -250,8 +431,39 @@ class Index extends Component
                 fputcsv($file, ['Low Stock Items', $products->filter(fn($p) => $p->isLowStock())->count()]);
                 fputcsv($file, ['Out of Stock Items', $products->filter(fn($p) => $p->isOutOfStock())->count()]);
 
+                // Products by Category
+                fputcsv($file, []); // Empty row
+                fputcsv($file, ['PRODUCTS BY CATEGORY']);
+                fputcsv($file, ['Category', 'Count', 'Total Value (₦)']);
+
+                $productsByCategory = $products->groupBy('category_id');
+                foreach ($productsByCategory as $categoryId => $categoryProducts) {
+                    $category = $categoryProducts->first()->category;
+                    fputcsv($file, [
+                        $category ? $category->name : 'Uncategorized',
+                        $categoryProducts->count(),
+                        number_format($categoryProducts->sum(fn($p) => $p->stockValue), 2),
+                    ]);
+                }
+
                 fclose($file);
             };
+
+            // Create notification about export
+            $notificationService = app(NotificationService::class);
+            $notificationService->create(
+                Auth::user(),
+                'info',
+                'Products Export Completed',
+                "You exported products data to CSV at " . now()->format('g:i A'),
+                [
+                    'action' => 'export_products',
+                    'filename' => $filename,
+                    'filters' => $this->getAppliedFiltersText(),
+                ]
+            );
+
+            $this->dispatch('notification-created');
 
             return new StreamedResponse($callback, 200, $headers);
 

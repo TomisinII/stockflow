@@ -3,6 +3,8 @@
 namespace App\Livewire\Suppliers;
 
 use App\Models\Supplier;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -15,12 +17,19 @@ class Show extends Component
     public $showEditModal = false;
     public $selectedSupplierId = null;
     public $supplierToDelete = null;
-    public $activeTab = 'overview'; // overview, products, orders, notes
+    public $activeTab = 'overview'; // overview, products, orders
+
+    protected NotificationService $notificationService;
 
     protected $listeners = [
         'confirmed' => 'handleConfirmed',
         'cancelled' => 'handleCancelled',
     ];
+
+    public function boot(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
 
     public function mount(Supplier $supplier)
     {
@@ -45,9 +54,21 @@ class Show extends Component
         $supplier = Supplier::findOrFail($supplierId);
         $this->supplierToDelete = $supplierId;
 
+        // Check if supplier has associated products
+        $productsCount = $supplier->products()->count();
+        $ordersCount = $supplier->purchaseOrders()->count();
+
+        $message = "Are you sure you want to delete '{$supplier->company_name}'?";
+
+        if ($productsCount > 0 || $ordersCount > 0) {
+            $message .= " This supplier has {$productsCount} product(s) and {$ordersCount} purchase order(s) associated with it.";
+        }
+
+        $message .= " This action cannot be undone.";
+
         $this->dispatch('showConfirmModal', [
             'title' => 'Delete Supplier',
-            'message' => "Are you sure you want to delete '{$supplier->company_name}'? This action cannot be undone.",
+            'message' => $message,
             'confirmText' => 'Delete',
             'cancelText' => 'Cancel',
             'confirmColor' => 'red',
@@ -57,11 +78,33 @@ class Show extends Component
 
     public function handleConfirmed()
     {
+        $supplierName = $this->supplier->company_name;
+        $productsCount = $this->supplier->products()->count();
+        $ordersCount = $this->supplier->purchaseOrders()->count();
+
         $this->supplier->delete();
 
         $this->supplierToDelete = null;
 
-        return redirect()->route('suppliers.index')->with('toast', ['type' => 'success', 'message' => 'Supplier deleted successfully!']);
+        // Notify admins and managers about supplier deletion
+        $this->notificationService->notifyAdminsAndManagers(
+            type: 'warning',
+            title: 'Supplier Deleted',
+            message: "Supplier '{$supplierName}' has been deleted by " . Auth::user()->name . ". {$productsCount} product(s) and {$ordersCount} order(s) were associated with this supplier.",
+            data: [
+                'deleted_by' => Auth::user()->name,
+                'supplier_name' => $supplierName,
+                'products_count' => $productsCount,
+                'orders_count' => $ordersCount,
+            ]
+        );
+
+        $this->dispatch('notification-created');
+
+        return redirect()->route('suppliers.index')->with('toast', [
+            'type' => 'success',
+            'message' => 'Supplier deleted successfully!'
+        ]);
     }
 
     public function handleCancelled()
@@ -94,10 +137,10 @@ class Show extends Component
         return [
             'total_products' => $this->supplier->products()->count(),
             'total_orders' => $this->supplier->purchaseOrders()->count(),
-            'pending_orders' => $this->supplier->pendingOrdersCount, 
-            'total_spent' => $this->supplier->totalSpent, 
-            'active_products' => $this->supplier->activeProductsCount, 
-            'low_stock_products' => $this->supplier->lowStockProductsCount, 
+            'pending_orders' => $this->supplier->pendingOrdersCount,
+            'total_spent' => $this->supplier->totalSpent,
+            'active_products' => $this->supplier->activeProductsCount,
+            'low_stock_products' => $this->supplier->lowStockProductsCount,
         ];
     }
 

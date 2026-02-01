@@ -11,9 +11,7 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-    {{-- Prevent theme flicker - runs BEFORE page renders --}}
     <script>
-        // This runs immediately, before any rendering
         (function() {
             const theme = '{{ auth()->user()?->theme ?? 'light' }}';
             if (theme === 'dark') {

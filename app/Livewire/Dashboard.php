@@ -69,6 +69,8 @@ class Dashboard extends Component
     public function getRecentAdjustmentsProperty()
     {
         return StockAdjustment::with(['product', 'adjuster'])
+            ->whereHas('product') // Only get adjustments with valid products
+            ->whereHas('adjuster') // Only get adjustments with valid users
             ->latest('created_at')
             ->limit(5)
             ->get();
@@ -124,10 +126,10 @@ class Dashboard extends Component
 
                 foreach ($this->recentAdjustments as $adjustment) {
                     fputcsv($file, [
-                        $adjustment->product->name,
+                        $adjustment->product?->name ?? 'N/A',
                         $adjustment->formattedType,
                         ($adjustment->adjustment_type === 'in' ? '+' : '-') . $adjustment->absoluteQuantity,
-                        $adjustment->adjuster->name,
+                        $adjustment->adjuster?->name ?? 'Unknown User',
                         $adjustment->created_at->format('Y-m-d'),
                         $adjustment->created_at->format('H:i:s'),
                     ]);
@@ -147,7 +149,7 @@ class Dashboard extends Component
                         fputcsv($file, [
                             $product->name,
                             $product->sku,
-                            $product->category->name ?? 'N/A',
+                            $product->category?->name ?? 'N/A',
                             $product->current_stock,
                             $product->minimum_stock,
                             number_format($product->stockValue, 2),
@@ -169,7 +171,7 @@ class Dashboard extends Component
                         fputcsv($file, [
                             $product->name,
                             $product->sku,
-                            $product->category->name ?? 'N/A',
+                            $product->category?->name ?? 'N/A',
                             $product->minimum_stock,
                         ]);
                     }
@@ -191,7 +193,7 @@ class Dashboard extends Component
 
                     foreach ($categoryStats as $stat) {
                         fputcsv($file, [
-                            $stat->category->name ?? 'Uncategorized',
+                            $stat->category?->name ?? 'Uncategorized',
                             $stat->product_count,
                             $stat->total_stock,
                             number_format($stat->total_value, 2),

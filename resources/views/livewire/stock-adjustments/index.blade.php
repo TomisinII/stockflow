@@ -144,7 +144,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-10 w-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                            @if($adjustment->product->image_path)
+                                            @if($adjustment->product?->image_path)
                                                 <img class="h-8 w-8 rounded object-cover" src="{{ Storage::url($adjustment->product->image_path) }}" alt="">
                                             @else
                                                 <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -154,10 +154,10 @@
                                         </div>
                                         <div class="ml-3">
                                             <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                                {{ $adjustment->product->name }}
+                                                {{ $adjustment->product?->name ?? 'N/A' }}
                                             </div>
                                             <div class="text-sm text-gray-500 dark:text-gray-400">
-                                                {{ $adjustment->product->sku }}
+                                                {{ $adjustment->product?->sku ?? 'N/A' }}
                                             </div>
                                         </div>
                                     </div>
@@ -209,11 +209,11 @@
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-8 w-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                                             <span class="text-xs font-medium text-blue-600 dark:text-blue-400">
-                                                {{ substr($adjustment->adjuster->name, 0, 2) }}
+                                                {{ substr($adjustment->adjuster?->name ?? 'UK', 0, 2) }}
                                             </span>
                                         </div>
                                         <div class="ml-2 text-sm text-gray-900 dark:text-white">
-                                            {{ $adjustment->adjuster->name }}
+                                            {{ $adjustment->adjuster?->name ?? 'Unknown User' }}
                                         </div>
                                     </div>
                                 </td>

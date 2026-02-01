@@ -131,15 +131,15 @@ class Index extends Component
                 foreach ($adjustments as $adjustment) {
                     fputcsv($file, [
                         $adjustment->adjustment_date->format('M d, h:i A'),
-                        $adjustment->product->name,
-                        $adjustment->product->sku,
+                        $adjustment->product?->name ?? 'N/A',
+                        $adjustment->product?->sku ?? 'N/A',
                         $adjustment->formatted_type,
                         $adjustment->formatted_quantity,
                         $adjustment->stock_before,
                         $adjustment->stock_after,
                         $adjustment->reason_display,
                         $adjustment->reference ?? '—',
-                        $adjustment->adjuster->name,
+                        $adjustment->adjuster?->name ?? 'Unknown User',
                     ]);
                 }
 
@@ -168,6 +168,8 @@ class Index extends Component
     {
         return StockAdjustment::query()
             ->with(['product', 'adjuster'])
+            ->whereHas('product') // Only get adjustments with valid products
+            ->whereHas('adjuster') // Only get adjustments with valid users
             ->when($this->search, function ($query) {
                 $query->search($this->search);
             })
