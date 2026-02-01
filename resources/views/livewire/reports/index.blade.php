@@ -1,4 +1,7 @@
-<div class="p-4 sm:p-6 lg:p-8">
+<div
+    class="p-4 sm:p-6 lg:p-8"
+    x-on:notification-created="$dispatch('toast', { type: $event.detail[0].type, message: $event.detail[0].message })"
+>
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 lg:mb-8">
         <div>
@@ -535,7 +538,7 @@
 
     document.addEventListener('livewire:navigated', () => setTimeout(initCharts, 300));
 
-    // FIXED: Re-render charts when date range updates without full page reload
+    // Re-render charts when date range updates without full page reload
     window.addEventListener('dateRangeUpdated', () => {
         setTimeout(initCharts, 100);
     });

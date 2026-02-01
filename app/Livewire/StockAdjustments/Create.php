@@ -4,6 +4,7 @@ namespace App\Livewire\StockAdjustments;
 
 use App\Models\StockAdjustment;
 use App\Models\Product;
+use App\Services\NotificationService;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -128,6 +129,7 @@ class Create extends Component
             DB::beginTransaction();
 
             $product = Product::findOrFail($this->product_id);
+            $oldStock = $product->current_stock;
 
             // Calculate the actual quantity change
             if ($this->adjustment_type === 'out') {
@@ -136,18 +138,19 @@ class Create extends Component
                     $this->addError('quantity',
                         'Insufficient stock. Available: ' . $product->current_stock . ' ' . $product->unit_of_measure
                     );
+                    DB::rollBack();
                     return;
                 }
                 $quantityChange = -$this->quantity;
             } elseif ($this->adjustment_type === 'in') {
                 $quantityChange = $this->quantity;
             } else {
-                // For correction, the quantity is the difference
+                // For correction, the quantity is the new total stock value
                 $quantityChange = $this->quantity - $product->current_stock;
             }
 
             // Create the adjustment record
-            StockAdjustment::create([
+            $stockAdjustment = StockAdjustment::create([
                 'product_id' => $this->product_id,
                 'adjustment_type' => $this->adjustment_type,
                 'quantity' => $quantityChange,
@@ -162,6 +165,43 @@ class Create extends Component
             $product->current_stock += $quantityChange;
             $product->save();
 
+            // Create notification for the adjustment
+            $notificationService = app(NotificationService::class);
+
+            $adjustmentTypeText = [
+                'in' => 'Stock In',
+                'out' => 'Stock Out',
+                'correction' => 'Stock Correction'
+            ][$this->adjustment_type];
+
+            $notificationService->create(
+                Auth::user(),
+                'info',
+                'Stock Adjustment Completed',
+                "{$adjustmentTypeText} for {$product->name}: {$this->formatQuantityChange($quantityChange)} {$product->unit_of_measure}. Stock: {$oldStock} → {$product->current_stock}",
+                [
+                    'action' => 'stock_adjustment',
+                    'stock_adjustment_id' => $stockAdjustment->id,
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'adjustment_type' => $this->adjustment_type,
+                    'quantity_change' => $quantityChange,
+                    'old_stock' => $oldStock,
+                    'new_stock' => $product->current_stock,
+                    'reason' => $this->reason,
+                    'link' => route('products.show', $product),
+                ]
+            );
+
+            // Check if stock levels trigger alerts
+            if ($product->current_stock <= 0) {
+                // Out of stock alert
+                $notificationService->createOutOfStockAlert(Auth::user(), $product);
+            } elseif ($product->current_stock <= $product->minimum_stock) {
+                // Low stock alert
+                $notificationService->createLowStockAlert(Auth::user(), $product);
+            }
+
             DB::commit();
 
             // Reset form
@@ -172,6 +212,7 @@ class Create extends Component
             // Close modal and notify
             $this->dispatch('close-modal', 'create-adjustment');
             $this->dispatch('adjustment-created');
+            $this->dispatch('notification-created');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -181,6 +222,14 @@ class Create extends Component
                 'message' => 'Failed to create adjustment: ' . $e->getMessage()
             ]);
         }
+    }
+
+    private function formatQuantityChange($quantity)
+    {
+        if ($quantity > 0) {
+            return '+' . $quantity;
+        }
+        return (string) $quantity;
     }
 
     public function closeModal()

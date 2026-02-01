@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\StockAdjustment;
 use App\Models\Supplier;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Livewire\Component;
@@ -19,9 +21,8 @@ class Index extends Component
 
     public function mount()
     {
-        // Default to last 2 years for comprehensive data
         $this->startDate = now()->subYears(1)->format('Y-m-d');
-        $this->endDate = now()->format('Y-m-d');
+        $this->endDate   = now()->format('Y-m-d');
     }
 
     public function updatedStartDate()
@@ -37,13 +38,14 @@ class Index extends Component
     public function resetDateRange()
     {
         $this->startDate = now()->subYears(1)->format('Y-m-d');
-        $this->endDate = now()->format('Y-m-d');
+        $this->endDate   = now()->format('Y-m-d');
         $this->dispatch('dateRangeUpdated');
     }
 
-    /**
-     * Export Current Stock Report
-     */
+    // ========================================
+    // PUBLIC EXPORT ENTRY POINTS
+    // ========================================
+
     public function exportCurrentStock($format = 'csv')
     {
         $products = Product::with(['category', 'supplier'])
@@ -51,16 +53,15 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
-        if ($format === 'csv') {
-            return $this->exportCurrentStockCSV($products);
-        } elseif ($format === 'pdf') {
-            return $this->exportCurrentStockPDF($products);
-        }
+        $filename = 'current-stock-report-' . now()->format('Y-m-d-His') . '.' . $format;
+
+        $this->createExportNotification('Current Stock Report', $format, $filename);
+
+        return $format === 'pdf'
+            ? $this->exportCurrentStockPDF($products)
+            : $this->exportCurrentStockCSV($products);
     }
 
-    /**
-     * Export Low Stock Report
-     */
     public function exportLowStock($format = 'csv')
     {
         $products = Product::with(['category', 'supplier'])
@@ -68,16 +69,15 @@ class Index extends Component
             ->orderBy('current_stock')
             ->get();
 
-        if ($format === 'csv') {
-            return $this->exportLowStockCSV($products);
-        } elseif ($format === 'pdf') {
-            return $this->exportLowStockPDF($products);
-        }
+        $filename = 'low-stock-report-' . now()->format('Y-m-d-His') . '.' . $format;
+
+        $this->createExportNotification('Low Stock Report', $format, $filename);
+
+        return $format === 'pdf'
+            ? $this->exportLowStockPDF($products)
+            : $this->exportLowStockCSV($products);
     }
 
-    /**
-     * Export Stock Valuation Report
-     */
     public function exportStockValuation($format = 'csv')
     {
         $products = Product::with(['category', 'supplier'])
@@ -86,88 +86,113 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
-        $totalCostValue = $products->sum('stock_value');
+        $totalCostValue    = $products->sum('stock_value');
         $totalSellingValue = $products->sum(fn($p) => $p->selling_price * $p->current_stock);
 
-        if ($format === 'csv') {
-            return $this->exportStockValuationCSV($products, $totalCostValue, $totalSellingValue);
-        } elseif ($format === 'pdf') {
-            return $this->exportStockValuationPDF($products, $totalCostValue, $totalSellingValue);
-        }
+        $filename = 'stock-valuation-report-' . now()->format('Y-m-d-His') . '.' . $format;
+
+        $this->createExportNotification('Stock Valuation Report', $format, $filename);
+
+        return $format === 'pdf'
+            ? $this->exportStockValuationPDF($products, $totalCostValue, $totalSellingValue)
+            : $this->exportStockValuationCSV($products, $totalCostValue, $totalSellingValue);
     }
 
-    /**
-     * Export Stock Movement Report
-     */
     public function exportStockMovement($format = 'csv')
     {
         $startDate = $this->startDate;
-        $endDate = $this->endDate;
+        $endDate   = $this->endDate;
 
         $adjustments = StockAdjustment::with(['product.category', 'adjustedBy'])
             ->whereBetween('adjustment_date', [$startDate, $endDate])
             ->orderBy('adjustment_date', 'desc')
             ->get();
 
-        if ($format === 'csv') {
-            return $this->exportStockMovementCSV($adjustments, $startDate, $endDate);
-        } elseif ($format === 'pdf') {
-            return $this->exportStockMovementPDF($adjustments, $startDate, $endDate);
-        }
+        $filename = 'stock-movement-report-' . now()->format('Y-m-d-His') . '.' . $format;
+
+        $this->createExportNotification('Stock Movement Report', $format, $filename);
+
+        return $format === 'pdf'
+            ? $this->exportStockMovementPDF($adjustments, $startDate, $endDate)
+            : $this->exportStockMovementCSV($adjustments, $startDate, $endDate);
     }
 
-    /**
-     * Export Purchase Orders Report
-     */
     public function exportPurchaseOrders($format = 'csv')
     {
         $startDate = $this->startDate;
-        $endDate = $this->endDate;
+        $endDate   = $this->endDate;
 
         $orders = PurchaseOrder::with(['supplier', 'creator', 'items.product'])
             ->whereBetween('order_date', [$startDate, $endDate])
             ->orderBy('order_date', 'desc')
             ->get();
 
-        if ($format === 'csv') {
-            return $this->exportPurchaseOrdersCSV($orders, $startDate, $endDate);
-        } elseif ($format === 'pdf') {
-            return $this->exportPurchaseOrdersPDF($orders, $startDate, $endDate);
-        }
+        $filename = 'purchase-orders-report-' . now()->format('Y-m-d-His') . '.' . $format;
+
+        $this->createExportNotification('Purchase Orders Report', $format, $filename);
+
+        return $format === 'pdf'
+            ? $this->exportPurchaseOrdersPDF($orders, $startDate, $endDate)
+            : $this->exportPurchaseOrdersCSV($orders, $startDate, $endDate);
     }
 
-    /**
-     * Export Supplier Performance Report
-     */
     public function exportSupplierPerformance($format = 'csv')
     {
         $startDate = $this->startDate;
-        $endDate = $this->endDate;
+        $endDate   = $this->endDate;
 
         $suppliers = Supplier::with(['purchaseOrders' => function ($query) use ($startDate, $endDate) {
             $query->whereBetween('order_date', [$startDate, $endDate]);
         }])->get();
 
         $suppliersData = $suppliers->map(function ($supplier) {
-            $orders = $supplier->purchaseOrders;
+            $orders         = $supplier->purchaseOrders;
             $receivedOrders = $orders->where('status', 'received');
 
             return [
-                'supplier' => $supplier,
-                'total_orders' => $orders->count(),
-                'received_orders' => $receivedOrders->count(),
-                'total_spent' => $receivedOrders->sum('total_amount'),
-                'avg_delivery_time' => $this->calculateAverageDeliveryTime($receivedOrders),
+                'supplier'              => $supplier,
+                'total_orders'          => $orders->count(),
+                'received_orders'       => $receivedOrders->count(),
+                'total_spent'           => $receivedOrders->sum('total_amount'),
+                'avg_delivery_time'     => $this->calculateAverageDeliveryTime($receivedOrders),
                 'on_time_delivery_rate' => $this->calculateOnTimeDeliveryRate($receivedOrders),
             ];
         })->filter(fn($s) => $s['total_orders'] > 0)->sortByDesc('total_spent');
 
-        if ($format === 'csv') {
-            return $this->exportSupplierPerformanceCSV($suppliersData, $startDate, $endDate);
-        } elseif ($format === 'pdf') {
-            return $this->exportSupplierPerformancePDF($suppliersData, $startDate, $endDate);
-        }
+        $filename = 'supplier-performance-report-' . now()->format('Y-m-d-His') . '.' . $format;
+
+        $this->createExportNotification('Supplier Performance Report', $format, $filename);
+
+        return $format === 'pdf'
+            ? $this->exportSupplierPerformancePDF($suppliersData, $startDate, $endDate)
+            : $this->exportSupplierPerformanceCSV($suppliersData, $startDate, $endDate);
     }
+
+    /**
+     * Creates an "info" notification for the current user recording which
+     * report was exported, then dispatches a bare event so the Blade
+     * view can surface a toast without a full page reload.
+     */
+    private function createExportNotification(string $reportName, string $format, string $filename): void
+    {
+        $notificationService = app(NotificationService::class);
+        $notificationService->create(
+            Auth::user(),
+            'info',
+            $reportName . ' Export Completed',
+            "You exported {$reportName} data to " . strtoupper($format) . " at " . now()->format('g:i A'),
+            [
+                'action'   => 'export_report',
+                'filename' => $filename,
+            ]
+        );
+
+        $this->dispatch('notification-created');
+    }
+
+    // ========================================
+    // CSV EXPORT METHODS
+    // ========================================
 
     private function exportCurrentStockCSV($products)
     {
@@ -175,13 +200,17 @@ class Index extends Component
 
         $callback = function () use ($products) {
             $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
             fputcsv($file, ['StockFlow - Current Stock Report']);
             fputcsv($file, ['Generated on: ' . now()->format('F d, Y H:i:s')]);
             fputcsv($file, []);
 
-            fputcsv($file, ['Product Name', 'SKU', 'Category', 'Supplier', 'Current Stock', 'Unit', 'Minimum Stock', 'Status', 'Cost Price (₦)', 'Selling Price (₦)', 'Stock Value (₦)']);
+            fputcsv($file, [
+                'Product Name', 'SKU', 'Category', 'Supplier',
+                'Current Stock', 'Unit', 'Minimum Stock', 'Status',
+                'Cost Price (₦)', 'Selling Price (₦)', 'Stock Value (₦)',
+            ]);
 
             foreach ($products as $product) {
                 fputcsv($file, [
@@ -208,7 +237,7 @@ class Index extends Component
         };
 
         return new StreamedResponse($callback, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
@@ -225,7 +254,10 @@ class Index extends Component
             fputcsv($file, ['Generated on: ' . now()->format('F d, Y H:i:s')]);
             fputcsv($file, []);
 
-            fputcsv($file, ['Product Name', 'SKU', 'Category', 'Supplier', 'Current Stock', 'Minimum Stock', 'Below Minimum', 'Unit', 'Status']);
+            fputcsv($file, [
+                'Product Name', 'SKU', 'Category', 'Supplier',
+                'Current Stock', 'Minimum Stock', 'Below Minimum', 'Unit', 'Status',
+            ]);
 
             foreach ($products as $product) {
                 fputcsv($file, [
@@ -249,7 +281,7 @@ class Index extends Component
         };
 
         return new StreamedResponse($callback, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
@@ -266,10 +298,14 @@ class Index extends Component
             fputcsv($file, ['Generated on: ' . now()->format('F d, Y H:i:s')]);
             fputcsv($file, []);
 
-            fputcsv($file, ['Product Name', 'SKU', 'Category', 'Current Stock', 'Unit', 'Cost Price (₦)', 'Selling Price (₦)', 'Cost Value (₦)', 'Selling Value (₦)', 'Potential Profit (₦)']);
+            fputcsv($file, [
+                'Product Name', 'SKU', 'Category', 'Current Stock', 'Unit',
+                'Cost Price (₦)', 'Selling Price (₦)',
+                'Cost Value (₦)', 'Selling Value (₦)', 'Potential Profit (₦)',
+            ]);
 
             foreach ($products as $product) {
-                $sellingValue = $product->selling_price * $product->current_stock;
+                $sellingValue   = $product->selling_price * $product->current_stock;
                 $potentialProfit = $sellingValue - $product->stock_value;
 
                 fputcsv($file, [
@@ -297,7 +333,7 @@ class Index extends Component
         };
 
         return new StreamedResponse($callback, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
@@ -315,7 +351,10 @@ class Index extends Component
             fputcsv($file, ['Generated on: ' . now()->format('F d, Y H:i:s')]);
             fputcsv($file, []);
 
-            fputcsv($file, ['Date', 'Product Name', 'SKU', 'Category', 'Type', 'Quantity', 'Reason', 'Reference', 'Adjusted By']);
+            fputcsv($file, [
+                'Date', 'Product Name', 'SKU', 'Category',
+                'Type', 'Quantity', 'Reason', 'Reference', 'Adjusted By',
+            ]);
 
             foreach ($adjustments as $adjustment) {
                 fputcsv($file, [
@@ -341,7 +380,7 @@ class Index extends Component
         };
 
         return new StreamedResponse($callback, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
@@ -359,7 +398,10 @@ class Index extends Component
             fputcsv($file, ['Generated on: ' . now()->format('F d, Y H:i:s')]);
             fputcsv($file, []);
 
-            fputcsv($file, ['PO Number', 'Supplier', 'Order Date', 'Expected Delivery', 'Status', 'Total Items', 'Total Amount (₦)', 'Created By']);
+            fputcsv($file, [
+                'PO Number', 'Supplier', 'Order Date', 'Expected Delivery',
+                'Status', 'Total Items', 'Total Amount (₦)', 'Created By',
+            ]);
 
             foreach ($orders as $order) {
                 fputcsv($file, [
@@ -386,7 +428,7 @@ class Index extends Component
         };
 
         return new StreamedResponse($callback, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
@@ -404,7 +446,10 @@ class Index extends Component
             fputcsv($file, ['Generated on: ' . now()->format('F d, Y H:i:s')]);
             fputcsv($file, []);
 
-            fputcsv($file, ['Supplier Name', 'Total Orders', 'Received Orders', 'Total Spent (₦)', 'Avg Delivery Time (days)', 'On-Time Delivery Rate (%)']);
+            fputcsv($file, [
+                'Supplier Name', 'Total Orders', 'Received Orders',
+                'Total Spent (₦)', 'Avg Delivery Time (days)', 'On-Time Delivery Rate (%)',
+            ]);
 
             foreach ($suppliersData as $data) {
                 fputcsv($file, [
@@ -427,33 +472,34 @@ class Index extends Component
         };
 
         return new StreamedResponse($callback, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
 
+    // ========================================
+    // PDF EXPORT METHODS
+    // ========================================
 
     private function exportCurrentStockPDF($products)
     {
         $pdf = Pdf::loadView('pdf.current-stock', [
-            'products' => $products,
+            'products'        => $products,
             'totalStockValue' => $products->sum('stock_value'),
-            'generatedAt' => now()->format('F d, Y H:i:s'),
+            'generatedAt'     => now()->format('F d, Y H:i:s'),
         ]);
 
         $fileName = 'current-stock-report-' . now()->format('Y-m-d-His') . '.pdf';
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, $fileName, [
-            'Content-Type' => 'application/pdf',
-        ]);
+        }, $fileName, ['Content-Type' => 'application/pdf']);
     }
 
     private function exportLowStockPDF($products)
     {
         $pdf = Pdf::loadView('pdf.low-stock', [
-            'products' => $products,
+            'products'    => $products,
             'generatedAt' => now()->format('F d, Y H:i:s'),
         ]);
 
@@ -461,38 +507,34 @@ class Index extends Component
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, $fileName, [
-            'Content-Type' => 'application/pdf',
-        ]);
+        }, $fileName, ['Content-Type' => 'application/pdf']);
     }
 
     private function exportStockValuationPDF($products, $totalCostValue, $totalSellingValue)
     {
         $pdf = Pdf::loadView('pdf.stock-valuation', [
-            'products' => $products,
-            'totalCostValue' => $totalCostValue,
-            'totalSellingValue' => $totalSellingValue,
-            'potentialProfit' => $totalSellingValue - $totalCostValue,
-            'generatedAt' => now()->format('F d, Y H:i:s'),
+            'products'         => $products,
+            'totalCostValue'   => $totalCostValue,
+            'totalSellingValue'=> $totalSellingValue,
+            'potentialProfit'  => $totalSellingValue - $totalCostValue,
+            'generatedAt'      => now()->format('F d, Y H:i:s'),
         ]);
 
         $fileName = 'stock-valuation-report-' . now()->format('Y-m-d-His') . '.pdf';
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, $fileName, [
-            'Content-Type' => 'application/pdf',
-        ]);
+        }, $fileName, ['Content-Type' => 'application/pdf']);
     }
 
     private function exportStockMovementPDF($adjustments, $startDate, $endDate)
     {
         $pdf = Pdf::loadView('pdf.stock-movement', [
             'adjustments' => $adjustments,
-            'startDate' => Carbon::parse($startDate)->format('M d, Y'),
-            'endDate' => Carbon::parse($endDate)->format('M d, Y'),
-            'stockIn' => $adjustments->where('adjustment_type', 'in')->sum('quantity'),
-            'stockOut' => abs($adjustments->where('adjustment_type', 'out')->sum('quantity')),
+            'startDate'   => Carbon::parse($startDate)->format('M d, Y'),
+            'endDate'     => Carbon::parse($endDate)->format('M d, Y'),
+            'stockIn'     => $adjustments->where('adjustment_type', 'in')->sum('quantity'),
+            'stockOut'    => abs($adjustments->where('adjustment_type', 'out')->sum('quantity')),
             'generatedAt' => now()->format('F d, Y H:i:s'),
         ]);
 
@@ -500,17 +542,15 @@ class Index extends Component
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, $fileName, [
-            'Content-Type' => 'application/pdf',
-        ]);
+        }, $fileName, ['Content-Type' => 'application/pdf']);
     }
 
     private function exportPurchaseOrdersPDF($orders, $startDate, $endDate)
     {
         $pdf = Pdf::loadView('pdf.purchase-orders', [
-            'orders' => $orders,
-            'startDate' => Carbon::parse($startDate)->format('M d, Y'),
-            'endDate' => Carbon::parse($endDate)->format('M d, Y'),
+            'orders'      => $orders,
+            'startDate'   => Carbon::parse($startDate)->format('M d, Y'),
+            'endDate'     => Carbon::parse($endDate)->format('M d, Y'),
             'totalAmount' => $orders->sum('total_amount'),
             'generatedAt' => now()->format('F d, Y H:i:s'),
         ]);
@@ -519,18 +559,16 @@ class Index extends Component
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, $fileName, [
-            'Content-Type' => 'application/pdf',
-        ]);
+        }, $fileName, ['Content-Type' => 'application/pdf']);
     }
 
     private function exportSupplierPerformancePDF($suppliersData, $startDate, $endDate)
     {
         $pdf = Pdf::loadView('pdf.supplier-performance', [
-            'suppliers' => $suppliersData,
-            'startDate' => Carbon::parse($startDate)->format('M d, Y'),
-            'endDate' => Carbon::parse($endDate)->format('M d, Y'),
-            'totalSpent' => $suppliersData->sum('total_spent'),
+            'suppliers'   => $suppliersData,
+            'startDate'   => Carbon::parse($startDate)->format('M d, Y'),
+            'endDate'     => Carbon::parse($endDate)->format('M d, Y'),
+            'totalSpent'  => $suppliersData->sum('total_spent'),
             'generatedAt' => now()->format('F d, Y H:i:s'),
         ]);
 
@@ -538,9 +576,7 @@ class Index extends Component
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, $fileName, [
-            'Content-Type' => 'application/pdf',
-        ]);
+        }, $fileName, ['Content-Type' => 'application/pdf']);
     }
 
     // ========================================
@@ -554,7 +590,7 @@ class Index extends Component
         }
 
         $totalDays = 0;
-        $count = 0;
+        $count     = 0;
 
         foreach ($orders as $order) {
             if ($order->order_date && $order->received_at) {
@@ -572,8 +608,8 @@ class Index extends Component
             return null;
         }
 
-        $onTimeCount = 0;
-        $totalWithExpectedDate = 0;
+        $onTimeCount            = 0;
+        $totalWithExpectedDate  = 0;
 
         foreach ($orders as $order) {
             if ($order->expected_delivery_date && $order->received_at) {
@@ -584,11 +620,13 @@ class Index extends Component
             }
         }
 
-        return $totalWithExpectedDate > 0 ? ($onTimeCount / $totalWithExpectedDate) * 100 : null;
+        return $totalWithExpectedDate > 0
+            ? ($onTimeCount / $totalWithExpectedDate) * 100
+            : null;
     }
 
     // ========================================
-    // DASHBOARD DATA PROPERTIES
+    // DASHBOARD DATA PROPERTIES (computed)
     // ========================================
 
     public function getTotalProductsProperty()
@@ -609,9 +647,9 @@ class Index extends Component
     public function getStockMovementThisMonthProperty()
     {
         $startOfMonth = now()->startOfMonth();
-        $endOfMonth = now()->endOfMonth();
+        $endOfMonth   = now()->endOfMonth();
 
-        $stockIn = StockAdjustment::where('adjustment_type', 'in')
+        $stockIn  = StockAdjustment::where('adjustment_type', 'in')
             ->whereBetween('adjustment_date', [$startOfMonth, $endOfMonth])
             ->sum('quantity');
 
@@ -626,7 +664,7 @@ class Index extends Component
     {
         return PurchaseOrder::whereBetween('order_date', [
             now()->startOfMonth(),
-            now()->endOfMonth()
+            now()->endOfMonth(),
         ])->count();
     }
 
@@ -646,10 +684,10 @@ class Index extends Component
         return $categories->map(function ($category) use ($total) {
             $percentage = $total > 0 ? round(($category->products_count / $total) * 100) : 0;
             return [
-                'name' => $category->name,
-                'count' => $category->products_count,
+                'name'       => $category->name,
+                'count'      => $category->products_count,
                 'percentage' => $percentage,
-                'color' => $category->color ?? '#6B7280',
+                'color'      => $category->color ?? '#6B7280',
             ];
         })->sortByDesc('count')->values()->toArray();
     }
@@ -658,11 +696,11 @@ class Index extends Component
     {
         $months = collect();
         for ($i = 5; $i >= 0; $i--) {
-            $date = now()->subMonths($i);
+            $date         = now()->subMonths($i);
             $startOfMonth = $date->copy()->startOfMonth();
-            $endOfMonth = $date->copy()->endOfMonth();
+            $endOfMonth   = $date->copy()->endOfMonth();
 
-            $stockIn = StockAdjustment::where('adjustment_type', 'in')
+            $stockIn  = StockAdjustment::where('adjustment_type', 'in')
                 ->whereBetween('adjustment_date', [$startOfMonth, $endOfMonth])
                 ->sum('quantity');
 
@@ -671,9 +709,9 @@ class Index extends Component
                 ->sum('quantity'));
 
             $months->push([
-                'month' => $date->format('M'),
+                'month'    => $date->format('M'),
                 'stock_in' => $stockIn,
-                'stock_out' => $stockOut,
+                'stock_out'=> $stockOut,
             ]);
         }
 
@@ -683,7 +721,7 @@ class Index extends Component
     public function getTopMovingProductsProperty()
     {
         $startDate = Carbon::parse($this->startDate);
-        $endDate = Carbon::parse($this->endDate);
+        $endDate   = Carbon::parse($this->endDate);
 
         return Product::select('products.*')
             ->withCount(['stockAdjustments' => function ($query) use ($startDate, $endDate) {
@@ -695,7 +733,7 @@ class Index extends Component
             ->get()
             ->map(function ($product) {
                 return [
-                    'name' => $product->name,
+                    'name'      => $product->name,
                     'movements' => $product->stock_adjustments_count,
                 ];
             })
@@ -710,14 +748,13 @@ class Index extends Component
             ->limit(5)
             ->get()
             ->map(function ($product) {
-                $belowMin = $product->minimum_stock - $product->current_stock;
                 return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'category' => $product->category->name,
+                    'id'            => $product->id,
+                    'name'          => $product->name,
+                    'category'      => $product->category->name,
                     'current_stock' => $product->current_stock,
                     'minimum_stock' => $product->minimum_stock,
-                    'below_minimum' => $belowMin,
+                    'below_minimum' => $product->minimum_stock - $product->current_stock,
                 ];
             })
             ->toArray();
@@ -726,16 +763,16 @@ class Index extends Component
     public function render()
     {
         return view('livewire.reports.index', [
-            'totalProducts' => $this->totalProducts,
-            'lowStockCount' => $this->lowStockCount,
-            'totalStockValue' => $this->totalStockValue,
-            'stockMovementThisMonth' => $this->stockMovementThisMonth,
+            'totalProducts'           => $this->totalProducts,
+            'lowStockCount'           => $this->lowStockCount,
+            'totalStockValue'         => $this->totalStockValue,
+            'stockMovementThisMonth'  => $this->stockMovementThisMonth,
             'purchaseOrdersThisMonth' => $this->purchaseOrdersThisMonth,
-            'activeSuppliers' => $this->activeSuppliers,
-            'inventoryByCategory' => $this->inventoryByCategory,
-            'stockMovementTrends' => $this->stockMovementTrends,
-            'topMovingProducts' => $this->topMovingProducts,
-            'lowStockAlerts' => $this->lowStockAlerts,
+            'activeSuppliers'         => $this->activeSuppliers,
+            'inventoryByCategory'     => $this->inventoryByCategory,
+            'stockMovementTrends'     => $this->stockMovementTrends,
+            'topMovingProducts'       => $this->topMovingProducts,
+            'lowStockAlerts'          => $this->lowStockAlerts,
         ]);
     }
 }

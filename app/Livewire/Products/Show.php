@@ -21,14 +21,14 @@ class Show extends Component
 
     public function mount(Product $product)
     {
-        $this->product = $product->load(['category', 'supplier', 'stockAdjustments.user']);
+        $this->product = $product->load(['category', 'supplier', 'stockAdjustments.adjuster']);
     }
 
     #[On('product-updated')]
     public function refreshProduct()
     {
         $this->product->refresh();
-        $this->product->load(['category', 'supplier', 'stockAdjustments.user']);
+        $this->product->load(['category', 'supplier', 'stockAdjustments.adjuster']);
     }
 
     public function confirmDelete($productId)
@@ -113,7 +113,7 @@ class Show extends Component
     {
         return view('livewire.products.show', [
             'recentAdjustments' => $this->product->stockAdjustments()
-                ->with('user')
+                ->with('adjuster')
                 ->latest()
                 ->take(10)
                 ->get(),

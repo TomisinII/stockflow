@@ -94,7 +94,7 @@ class Create extends Component
 
         $this->dispatch('notification-created');
         $this->dispatch('supplier-created');
-        $this->reset();
+        $this->closeModal();
     }
 
     public function closeModal()

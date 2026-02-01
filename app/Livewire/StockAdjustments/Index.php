@@ -3,6 +3,10 @@
 namespace App\Livewire\StockAdjustments;
 
 use App\Models\StockAdjustment;
+use App\Models\Product;
+use App\Models\User;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\On;
@@ -13,28 +17,21 @@ class Index extends Component
     use WithPagination;
 
     public $search = '';
-    public $typeFilter = 'all'; // all, in, out, correction
+    public $productFilter = '';
+    public $typeFilter = 'all';
+    public $reasonFilter = 'all';
     public $startDate = '';
     public $endDate = '';
     public $showCreateModal = false;
-
-    // Stats
-    public $totalAdjustments = 0;
-    public $stockInCount = 0;
-    public $stockOutCount = 0;
-    public $correctionsCount = 0;
+    public $preselectedProductId = null;
 
     public function mount()
     {
-        if (request()->query('action') === 'create-stock-adjustment') {
+        // Check if we should open the create modal with a preselected product
+        if (request()->query('action') === 'create-adjustment') {
+            $this->preselectedProductId = request()->query('product');
             $this->dispatch('open-modal', 'create-adjustment');
         }
-
-        // Set default date range (last 30 days)
-        $this->endDate = now()->format('Y-m-d');
-        $this->startDate = now()->subDays(30)->format('Y-m-d');
-
-        $this->updateStats();
     }
 
     public function updatingSearch()
@@ -42,32 +39,29 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatingProductFilter()
+    {
+        $this->resetPage();
+    }
+
     public function updatingTypeFilter()
     {
         $this->resetPage();
-        $this->updateStats();
     }
 
-    public function updatedStartDate()
+    public function updatingReasonFilter()
     {
         $this->resetPage();
-        $this->updateStats();
     }
 
-    public function updatedEndDate()
+    public function updatingStartDate()
     {
         $this->resetPage();
-        $this->updateStats();
     }
 
-    public function updateStats()
+    public function updatingEndDate()
     {
-        $query = $this->getBaseQuery();
-
-        $this->totalAdjustments = $query->count();
-        $this->stockInCount = (clone $query)->where('adjustment_type', 'in')->count();
-        $this->stockOutCount = (clone $query)->where('adjustment_type', 'out')->count();
-        $this->correctionsCount = (clone $query)->where('adjustment_type', 'correction')->count();
+        $this->resetPage();
     }
 
     public function openCreateModal()
@@ -80,18 +74,23 @@ class Index extends Component
     public function handleAdjustmentCreated()
     {
         $this->showCreateModal = false;
-        $this->updateStats();
-
+        $this->resetPage();
         $this->dispatch('toast', [
             'type' => 'success',
             'message' => 'Stock adjustment created successfully!'
         ]);
     }
 
+    public function resetFilters()
+    {
+        $this->reset(['search', 'productFilter', 'typeFilter', 'reasonFilter', 'startDate', 'endDate']);
+        $this->resetPage();
+    }
+
     public function exportAdjustments()
     {
         try {
-            $filename = 'stock-adjustments-' . now()->format('Y-m-d-His') . '.csv';
+            $filename = 'stock-adjustments-export-' . now()->format('Y-m-d-His') . '.csv';
 
             $headers = [
                 'Content-Type' => 'text/csv; charset=UTF-8',
@@ -104,92 +103,301 @@ class Index extends Component
             $callback = function() {
                 $file = fopen('php://output', 'w');
 
-                // UTF-8 BOM
+                // Add UTF-8 BOM for Excel compatibility
                 fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
 
-                // Headers
+                // Report Header
                 fputcsv($file, ['StockFlow Stock Adjustments Export']);
-                fputcsv($file, ['Generated: ' . now()->format('F d, Y H:i:s')]);
-                fputcsv($file, ['Date Range: ' . $this->startDate . ' to ' . $this->endDate]);
-                fputcsv($file, []);
+                fputcsv($file, ['Generated on: ' . now()->format('F d, Y H:i:s')]);
+                fputcsv($file, ['Filters Applied: ' . $this->getAppliedFiltersText()]);
+                fputcsv($file, []); // Empty row
 
+                // Column Headers
                 fputcsv($file, [
-                    'Date & Time',
-                    'Product',
+                    'Date',
+                    'Product Name',
                     'SKU',
-                    'Type',
+                    'Adjustment Type',
                     'Quantity',
-                    'Before',
-                    'After',
+                    'Unit',
                     'Reason',
                     'Reference',
                     'Adjusted By',
+                    'Notes',
+                    'Stock Before',
+                    'Stock After',
                 ]);
 
-                $adjustments = $this->getBaseQuery()->get();
+                // Get all adjustments matching current filters
+                $adjustments = StockAdjustment::query()
+                    ->with(['product', 'adjuster'])
+                    ->when($this->search, function ($query) {
+                        $query->whereHas('product', function ($q) {
+                            $q->where('name', 'like', '%' . $this->search . '%')
+                              ->orWhere('sku', 'like', '%' . $this->search . '%');
+                        });
+                    })
+                    ->when($this->productFilter, function ($query) {
+                        $query->where('product_id', $this->productFilter);
+                    })
+                    ->when($this->typeFilter !== 'all', function ($query) {
+                        $query->where('adjustment_type', $this->typeFilter);
+                    })
+                    ->when($this->reasonFilter !== 'all', function ($query) {
+                        $query->where('reason', $this->reasonFilter);
+                    })
+                    ->when($this->startDate, function ($query) {
+                        $query->whereDate('adjustment_date', '>=', $this->startDate);
+                    })
+                    ->when($this->endDate, function ($query) {
+                        $query->whereDate('adjustment_date', '<=', $this->endDate);
+                    })
+                    ->latest('adjustment_date')
+                    ->get();
 
+                // Adjustment Rows
                 foreach ($adjustments as $adjustment) {
+                    $stockBefore = $adjustment->product->current_stock - $adjustment->quantity;
+                    $stockAfter = $adjustment->product->current_stock;
+
                     fputcsv($file, [
-                        $adjustment->adjustment_date->format('M d, h:i A'),
-                        $adjustment->product?->name ?? 'N/A',
-                        $adjustment->product?->sku ?? 'N/A',
-                        $adjustment->formatted_type,
-                        $adjustment->formatted_quantity,
-                        $adjustment->stock_before,
-                        $adjustment->stock_after,
-                        $adjustment->reason_display,
-                        $adjustment->reference ?? '—',
-                        $adjustment->adjuster?->name ?? 'Unknown User',
+                        $adjustment->adjustment_date->format('Y-m-d H:i:s'),
+                        $adjustment->product->name,
+                        $adjustment->product->sku,
+                        ucfirst($adjustment->adjustment_type),
+                        abs($adjustment->quantity),
+                        $adjustment->product->unit_of_measure,
+                        ucfirst(str_replace('_', ' ', $adjustment->reason)),
+                        $adjustment->reference ?? 'N/A',
+                        $adjustment->adjuster->name,
+                        $adjustment->notes ?? 'N/A',
+                        $stockBefore,
+                        $stockAfter,
                     ]);
                 }
 
-                // Summary
-                fputcsv($file, []);
-                fputcsv($file, ['SUMMARY']);
-                fputcsv($file, ['Total Adjustments', $this->totalAdjustments]);
-                fputcsv($file, ['Stock In', $this->stockInCount]);
-                fputcsv($file, ['Stock Out', $this->stockOutCount]);
-                fputcsv($file, ['Corrections', $this->correctionsCount]);
+                // Summary Statistics
+                fputcsv($file, []); // Empty row
+                fputcsv($file, ['SUMMARY STATISTICS']);
+                fputcsv($file, ['Total Adjustments', $adjustments->count()]);
+                fputcsv($file, ['Stock In Adjustments', $adjustments->where('adjustment_type', 'in')->count()]);
+                fputcsv($file, ['Stock Out Adjustments', $adjustments->where('adjustment_type', 'out')->count()]);
+                fputcsv($file, ['Correction Adjustments', $adjustments->where('adjustment_type', 'correction')->count()]);
+
+                // Adjustments by Reason
+                fputcsv($file, []); // Empty row
+                fputcsv($file, ['ADJUSTMENTS BY REASON']);
+                fputcsv($file, ['Reason', 'Count']);
+
+                $adjustmentsByReason = $adjustments->groupBy('reason');
+                foreach ($adjustmentsByReason as $reason => $reasonAdjustments) {
+                    fputcsv($file, [
+                        ucfirst(str_replace('_', ' ', $reason)),
+                        $reasonAdjustments->count()
+                    ]);
+                }
+
+                // Top Products by Adjustments
+                fputcsv($file, []); // Empty row
+                fputcsv($file, ['TOP 10 PRODUCTS BY ADJUSTMENT COUNT']);
+                fputcsv($file, ['Product Name', 'SKU', 'Adjustment Count']);
+
+                $topProducts = $adjustments->groupBy('product_id')->map(function($group) {
+                    return [
+                        'product' => $group->first()->product,
+                        'count' => $group->count()
+                    ];
+                })->sortByDesc('count')->take(10);
+
+                foreach ($topProducts as $item) {
+                    fputcsv($file, [
+                        $item['product']->name,
+                        $item['product']->sku,
+                        $item['count'],
+                    ]);
+                }
 
                 fclose($file);
             };
+
+            // Create notification about export
+            $notificationService = app(NotificationService::class);
+            $notificationService->create(
+                Auth::user(),
+                'info',
+                'Stock Adjustments Export Completed',
+                "You exported stock adjustments data to CSV at " . now()->format('g:i A'),
+                [
+                    'action' => 'export_adjustments',
+                    'filename' => $filename,
+                    'filters' => $this->getAppliedFiltersText(),
+                ]
+            );
+            $this->dispatch('notification-created');
 
             return new StreamedResponse($callback, 200, $headers);
 
         } catch (\Exception $e) {
             $this->dispatch('toast', [
                 'type' => 'error',
-                'message' => 'Export failed: ' . $e->getMessage()
+                'message' => 'Failed to export adjustments: ' . $e->getMessage()
             ]);
         }
     }
 
-    private function getBaseQuery()
+    private function getAppliedFiltersText()
+    {
+        $filters = [];
+
+        if ($this->search) {
+            $filters[] = 'Search: "' . $this->search . '"';
+        }
+
+        if ($this->productFilter) {
+            $product = Product::find($this->productFilter);
+            $filters[] = 'Product: ' . $product->name;
+        }
+
+        if ($this->typeFilter !== 'all') {
+            $filters[] = 'Type: ' . ucfirst($this->typeFilter);
+        }
+
+        if ($this->reasonFilter !== 'all') {
+            $filters[] = 'Reason: ' . ucfirst(str_replace('_', ' ', $this->reasonFilter));
+        }
+
+        if ($this->startDate) {
+            $filters[] = 'From: ' . \Carbon\Carbon::parse($this->startDate)->format('M d, Y');
+        }
+
+        if ($this->endDate) {
+            $filters[] = 'To: ' . \Carbon\Carbon::parse($this->endDate)->format('M d, Y');
+        }
+
+        return $filters ? implode(', ', $filters) : 'None';
+    }
+
+    public function getAdjustments()
     {
         return StockAdjustment::query()
             ->with(['product', 'adjuster'])
-            ->whereHas('product') // Only get adjustments with valid products
-            ->whereHas('adjuster') // Only get adjustments with valid users
             ->when($this->search, function ($query) {
-                $query->search($this->search);
+                $query->whereHas('product', function ($q) {
+                    $q->where('name', 'like', '%' . $this->search . '%')
+                      ->orWhere('sku', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->when($this->productFilter, function ($query) {
+                $query->where('product_id', $this->productFilter);
             })
             ->when($this->typeFilter !== 'all', function ($query) {
                 $query->where('adjustment_type', $this->typeFilter);
             })
-            ->when($this->startDate && $this->endDate, function ($query) {
-                $query->whereBetween('adjustment_date', [
-                    $this->startDate . ' 00:00:00',
-                    $this->endDate . ' 23:59:59'
-                ]);
+            ->when($this->reasonFilter !== 'all', function ($query) {
+                $query->where('reason', $this->reasonFilter);
+            })
+            ->when($this->startDate, function ($query) {
+                $query->whereDate('adjustment_date', '>=', $this->startDate);
+            })
+            ->when($this->endDate, function ($query) {
+                $query->whereDate('adjustment_date', '<=', $this->endDate);
             })
             ->latest('adjustment_date')
-            ->latest('id');
+            ->paginate(15);
+    }
+
+    public function getProducts()
+    {
+        return Product::query()
+            ->select('id', 'name', 'sku')
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getTotalAdjustmentsProperty()
+    {
+        return StockAdjustment::query()
+            ->when($this->search, function ($query) {
+                $query->whereHas('product', function ($q) {
+                    $q->where('name', 'like', '%' . $this->search . '%')
+                      ->orWhere('sku', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->when($this->startDate, function ($query) {
+                $query->whereDate('adjustment_date', '>=', $this->startDate);
+            })
+            ->when($this->endDate, function ($query) {
+                $query->whereDate('adjustment_date', '<=', $this->endDate);
+            })
+            ->count();
+    }
+
+    public function getStockInCountProperty()
+    {
+        return StockAdjustment::query()
+            ->where('adjustment_type', 'in')
+            ->when($this->search, function ($query) {
+                $query->whereHas('product', function ($q) {
+                    $q->where('name', 'like', '%' . $this->search . '%')
+                      ->orWhere('sku', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->when($this->startDate, function ($query) {
+                $query->whereDate('adjustment_date', '>=', $this->startDate);
+            })
+            ->when($this->endDate, function ($query) {
+                $query->whereDate('adjustment_date', '<=', $this->endDate);
+            })
+            ->count();
+    }
+
+    public function getStockOutCountProperty()
+    {
+        return StockAdjustment::query()
+            ->where('adjustment_type', 'out')
+            ->when($this->search, function ($query) {
+                $query->whereHas('product', function ($q) {
+                    $q->where('name', 'like', '%' . $this->search . '%')
+                      ->orWhere('sku', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->when($this->startDate, function ($query) {
+                $query->whereDate('adjustment_date', '>=', $this->startDate);
+            })
+            ->when($this->endDate, function ($query) {
+                $query->whereDate('adjustment_date', '<=', $this->endDate);
+            })
+            ->count();
+    }
+
+    public function getCorrectionsCountProperty()
+    {
+        return StockAdjustment::query()
+            ->where('adjustment_type', 'correction')
+            ->when($this->search, function ($query) {
+                $query->whereHas('product', function ($q) {
+                    $q->where('name', 'like', '%' . $this->search . '%')
+                      ->orWhere('sku', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->when($this->startDate, function ($query) {
+                $query->whereDate('adjustment_date', '>=', $this->startDate);
+            })
+            ->when($this->endDate, function ($query) {
+                $query->whereDate('adjustment_date', '<=', $this->endDate);
+            })
+            ->count();
     }
 
     public function render()
     {
         return view('livewire.stock-adjustments.index', [
-            'adjustments' => $this->getBaseQuery()->paginate(10),
+            'adjustments' => $this->getAdjustments(),
+            'products' => $this->getProducts(),
+            'totalAdjustments' => $this->totalAdjustments,
+            'stockInCount' => $this->stockInCount,
+            'stockOutCount' => $this->stockOutCount,
+            'correctionsCount' => $this->correctionsCount,
         ]);
     }
 }
