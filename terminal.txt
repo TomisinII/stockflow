@@ -31,7 +31,6 @@ php artisan make:seeder ProductSeeder
 
 php artisan make:livewire Dashboard
 php artisan make:livewire QuickAdd
-php artisan make:livewire Landing
 
 php artisan livewire:publish --config
 
@@ -68,6 +67,7 @@ php artisan make:livewire Settings/Notifications
 php artisan make:livewire Settings/Appearance
 php artisan make:livewire Settings/Security
 php artisan make:livewire Settings/Data
+php artisan make:livewire Settings/Profile
 
 php artisan storage:link
 

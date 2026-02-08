@@ -37,6 +37,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/notifications', Notifications\Index::class)->name('notifications.index');
 
+    Route::get('/settings/profile', Settings\Profile::class)->name('settings.profile');
+
     Route::get('/users', Users\Index::class)
         ->middleware('can:view_users')
         ->name('users.index');

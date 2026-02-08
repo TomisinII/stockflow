@@ -20,6 +20,7 @@ class UserSeeder extends Seeder
             'name' => 'Admin User',
             'email' => 'admin@stockflow.test',
             'password' => Hash::make('Admin123!'),
+            'phone' => '+234 801 234 5678',
             'email_verified_at' => now(),
             'theme' => 'light',
         ]);
@@ -55,6 +56,7 @@ class UserSeeder extends Seeder
             'name' => 'Manager User',
             'email' => 'manager@stockflow.test',
             'password' => Hash::make('Manager123!'),
+            'phone' => '+234 802 345 6789',
             'email_verified_at' => now(),
             'theme' => 'light',
         ]);
@@ -88,6 +90,7 @@ class UserSeeder extends Seeder
             'name' => 'Staff User',
             'email' => 'staff@stockflow.test',
             'password' => Hash::make('Staff123!'),
+            'phone' => '+234 803 456 7890',
             'email_verified_at' => now(),
             'theme' => 'light',
         ]);
@@ -119,6 +122,7 @@ class UserSeeder extends Seeder
             'name' => 'John Doe',
             'email' => 'john@stockflow.test',
             'password' => Hash::make('password'),
+            'phone' => '+234 803 456 7890',
             'email_verified_at' => now(),
             'theme' => 'dark',
         ]);
@@ -148,6 +152,7 @@ class UserSeeder extends Seeder
             'name' => 'Jane Smith',
             'email' => 'jane@stockflow.test',
             'password' => Hash::make('password'),
+            'phone' => '+234 804 567 8901',
             'email_verified_at' => now(),
             'theme' => 'system',
         ]);

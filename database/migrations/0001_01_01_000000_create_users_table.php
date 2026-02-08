@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('password');
             $table->string('avatar')->nullable();
             $table->enum('theme', ['light', 'dark', 'system'])->default('light');
+            $table->string('phone', 50)->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

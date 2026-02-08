@@ -448,9 +448,15 @@
                         @click="open = !open"
                         class="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
-                        <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium">
-                            {{ auth()->user()->initials }}
-                        </div>
+                        @if(Auth::user()->avatar)
+                            <div class="w-8 h-8 rounded-full overflow-hidden">
+                                <img src="{{ asset('storage/' . Auth::user()->avatar) }}" alt="Avatar" class="w-8 h-8 rounded-full object-cover">
+                            </div>
+                        @else
+                            <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium">
+                                {{ auth()->user()->initials }}
+                            </div>
+                        @endif
                         <svg class="w-4 h-4 text-gray-500 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
@@ -469,6 +475,9 @@
                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ auth()->user()->email }}</p>
                         </div>
                         <div class="py-1">
+                            <a href="{{ route('settings.profile') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Profile
+                            </a>
                             @can('view_settings')
                                 <a href="{{ route('settings.index') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                                     Settings
