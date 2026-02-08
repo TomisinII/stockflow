@@ -5,6 +5,7 @@ namespace App\Livewire\PurchaseOrders;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\Product;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
@@ -144,7 +145,9 @@ class Create extends Component
 
         $this->validate();
 
-        DB::transaction(function () {
+        $purchaseOrder = null;
+
+        DB::transaction(function () use (&$purchaseOrder) {
             $purchaseOrder = PurchaseOrder::create([
                 'po_number' => $this->po_number,
                 'supplier_id' => $this->supplier_id,
@@ -168,6 +171,32 @@ class Create extends Component
                 ]);
             }
         });
+
+        // Create notification about new purchase order
+        if ($purchaseOrder) {
+            $notificationService = app(NotificationService::class);
+            $supplier = Supplier::find($this->supplier_id);
+            $itemsCount = count($this->selectedProducts);
+            $totalAmount = $this->calculateTotal();
+
+            $notificationService->notifyAdminsAndManagers(
+                type: $this->status === 'sent' ? 'info' : 'success',
+                title: 'Purchase Order Created',
+                message: "{$purchaseOrder->po_number} for {$supplier->company_name} was created by " . Auth::user()->name . " with {$itemsCount} items totaling ₦" . number_format($totalAmount, 2) . ". Status: " . ucfirst($this->status) . ".",
+                data: [
+                    'po_number' => $purchaseOrder->po_number,
+                    'supplier_id' => $supplier->id,
+                    'supplier_name' => $supplier->company_name,
+                    'items_count' => $itemsCount,
+                    'total_amount' => $totalAmount,
+                    'status' => $this->status,
+                    'created_by' => Auth::user()->name,
+                    'link' => route('purchase_orders.show', $purchaseOrder),
+                ]
+            );
+
+            $this->dispatch('notification-created');
+        }
 
         $this->closeModal();
         $this->dispatch('purchase-order-created');

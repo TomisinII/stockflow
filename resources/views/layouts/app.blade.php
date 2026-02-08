@@ -12,6 +12,7 @@
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
     <script>
+        // Apply theme immediately before page renders to prevent flash
         (function() {
             const theme = '{{ auth()->user()?->theme ?? 'light' }}';
             if (theme === 'dark') {
@@ -25,7 +26,29 @@
 </head>
 <body class="font-sans antialiased">
     <!-- Wrap everything in a single Alpine component to share state -->
-    <div x-data="{ sidebarOpen: @json(session('sidebarOpen', true)) }">
+    <div
+        x-data="{
+            sidebarOpen: @json(session('sidebarOpen', true)),
+            currentTheme: '{{ auth()->user()?->theme ?? 'light' }}'
+        }"
+        x-init="
+            // Ensure theme is applied on initial load
+            if (currentTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        "
+        @theme-toggled.window="
+            // Update current theme when toggled
+            currentTheme = $event.detail.theme;
+            if (currentTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        "
+    >
         <!-- Navigation Component (Sidebar + Header) -->
         @livewire('layout.navigation')
 
@@ -52,5 +75,27 @@
             });
         </script>
     @endif
+
+    <script>
+        // Persist theme across Livewire wire:navigate transitions
+        document.addEventListener('livewire:navigated', () => {
+            const theme = '{{ auth()->user()?->theme ?? 'light' }}';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+    </script>
+
+    <script>
+        document.addEventListener('livewire:initialized', () => {
+            Livewire.on('settings-saved', () => {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            });
+        });
+    </script>
 </body>
 </html>

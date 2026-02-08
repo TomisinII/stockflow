@@ -3,6 +3,7 @@
 namespace App\Livewire\PurchaseOrders;
 
 use App\Models\PurchaseOrder;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +26,7 @@ class Receive extends Component
 
     public function mount($purchaseOrderId)
     {
-        $this->purchaseOrder = PurchaseOrder::with(['items.product'])->findOrFail($purchaseOrderId);
+        $this->purchaseOrder = PurchaseOrder::with(['items.product', 'supplier'])->findOrFail($purchaseOrderId);
 
         // Check if PO can be received
         if (!$this->purchaseOrder->canBeReceived()) {
@@ -111,7 +112,10 @@ class Receive extends Component
         // Validate all items
         $this->validate();
 
-        DB::transaction(function () {
+        $totalItemsReceived = 0;
+        $productsUpdated = [];
+
+        DB::transaction(function () use (&$totalItemsReceived, &$productsUpdated) {
             // Update purchase order status
             $this->purchaseOrder->update([
                 'status' => 'received',
@@ -132,7 +136,16 @@ class Receive extends Component
 
                     // Update product stock
                     $product = $poItem->product;
+                    $oldStock = $product->current_stock;
                     $product->increment('current_stock', $quantityReceived);
+
+                    $productsUpdated[] = [
+                        'name' => $product->name,
+                        'sku' => $product->sku,
+                        'quantity_received' => $quantityReceived,
+                        'old_stock' => $oldStock,
+                        'new_stock' => $product->fresh()->current_stock,
+                    ];
 
                     // Create stock adjustment record
                     $product->stockAdjustments()->create([
@@ -144,12 +157,46 @@ class Receive extends Component
                         'adjusted_by' => Auth::id(),
                         'adjustment_date' => $this->received_at,
                     ]);
+
+                    $totalItemsReceived += $quantityReceived;
                 }
             }
         });
 
+        // Create notification about PO being received
+        $notificationService = app(NotificationService::class);
+
+        // Use the helper method from NotificationService
+        $notificationService->createPurchaseOrderReceived(
+            Auth::user(),
+            $this->purchaseOrder->fresh()
+        );
+
+        // Also notify all admins and managers
+        $notificationService->notifyAdminsAndManagers(
+            type: 'success',
+            title: 'Purchase Order Received',
+            message: "{$this->purchaseOrder->po_number} from {$this->purchaseOrder->supplier->company_name} has been received by " . Auth::user()->name . ". Total items received: {$totalItemsReceived}. Inventory has been updated.",
+            data: [
+                'po_number' => $this->purchaseOrder->po_number,
+                'supplier_name' => $this->purchaseOrder->supplier->company_name,
+                'total_items_received' => $totalItemsReceived,
+                'products_updated' => $productsUpdated,
+                'received_by' => Auth::user()->name,
+                'received_at' => $this->received_at,
+                'link' => route('purchase_orders.show', $this->purchaseOrder),
+            ]
+        );
+
+        $this->dispatch('notification-created');
+
         $this->closeModal();
         $this->dispatch('purchase-order-received');
+
+        $this->dispatch('toast', [
+            'type' => 'success',
+            'message' => "Purchase order received! {$totalItemsReceived} items added to inventory."
+        ]);
     }
 
     public function closeModal()

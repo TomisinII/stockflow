@@ -1,11 +1,11 @@
-<x-modal name="create-user" maxWidth="lg" :show="false">
-    <form wire:submit="save">
+<x-modal name="edit-user-{{ $user->id }}" maxWidth="lg" :show="false">
+    <form wire:submit="update">
         <!-- Modal Header -->
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
                 <div>
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Add New User</h2>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Invite a new team member to StockFlow</p>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Edit User</h2>
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Update user information and role</p>
                 </div>
                 <button
                     wire:click="closeModal"
@@ -24,25 +24,24 @@
             <div class="space-y-4">
                 <!-- Full Name -->
                 <div>
-                    <x-input-label for="name" value="Full Name" required />
+                    <x-input-label for="edit_name" value="Full Name" required />
                     <x-text-input
                         wire:model="name"
-                        id="name"
+                        id="edit_name"
                         type="text"
                         placeholder="Enter full name"
                         class="mt-1"
                         required
-                        autofocus
                     />
                     <x-input-error :messages="$errors->get('name')" class="mt-2" />
                 </div>
 
                 <!-- Email Address -->
                 <div>
-                    <x-input-label for="email" value="Email Address" required />
+                    <x-input-label for="edit_email" value="Email Address" required />
                     <x-text-input
                         wire:model="email"
-                        id="email"
+                        id="edit_email"
                         type="email"
                         placeholder="Enter email address"
                         class="mt-1"
@@ -53,10 +52,10 @@
 
                 <!-- Role -->
                 <div>
-                    <x-input-label for="role" value="Role" required />
+                    <x-input-label for="edit_role" value="Role" required />
                     <select
                         wire:model="role"
-                        id="role"
+                        id="edit_role"
                         class="mt-1 w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900 dark:text-white"
                         required
                     >
@@ -74,9 +73,6 @@
                         @endforeach
                     </select>
                     <x-input-error :messages="$errors->get('role')" class="mt-2" />
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        The user will receive an email invitation to set up their account
-                    </p>
                 </div>
             </div>
         </div>
@@ -87,10 +83,7 @@
                 Cancel
             </x-secondary-button>
             <x-primary-button type="submit">
-                <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                </svg>
-                Send Invitation
+                Update User
             </x-primary-button>
         </div>
     </form>

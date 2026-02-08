@@ -3,7 +3,9 @@
 namespace App\Livewire\PurchaseOrders;
 
 use App\Models\PurchaseOrder;
+use App\Services\NotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\On;
@@ -91,10 +93,29 @@ class Index extends Component
     {
         if ($this->purchaseOrderToDelete) {
             $purchaseOrder = PurchaseOrder::findOrFail($this->purchaseOrderToDelete);
+            $poNumber = $purchaseOrder->po_number;
+            $supplierName = $purchaseOrder->supplier->company_name ?? 'Unknown Supplier';
+
             $purchaseOrder->delete();
 
             $this->purchaseOrderToDelete = null;
             $this->updateStatusCounts();
+
+            // Create notification about deletion
+            $notificationService = app(NotificationService::class);
+            $notificationService->notifyAdminsAndManagers(
+                type: 'warning',
+                title: 'Purchase Order Deleted',
+                message: "Purchase order {$poNumber} from {$supplierName} was deleted by " . Auth::user()->name . ".",
+                data: [
+                    'po_number' => $poNumber,
+                    'supplier_name' => $supplierName,
+                    'deleted_by' => Auth::user()->name,
+                    'deleted_at' => now()->toDateTimeString(),
+                ]
+            );
+
+            $this->dispatch('notification-created');
 
             $this->dispatch('toast', [
                 'type' => 'success',
@@ -148,7 +169,7 @@ class Index extends Component
                 'Expires' => '0',
             ];
 
-            $callback = function() {
+            $callback = function() use ($filename) {
                 $file = fopen('php://output', 'w');
 
                 // Add UTF-8 BOM for Excel compatibility
@@ -216,8 +237,9 @@ class Index extends Component
 
                 // Purchase Order Rows
                 foreach ($purchaseOrders as $order) {
-                    $totalQuantity = $order->items->sum('quantity');
-                    $balanceDue = $order->total_amount - $order->amount_paid;
+                    $totalQuantity = $order->items->sum('quantity_ordered');
+                    $amountPaid = $order->amount_paid ?? 0;
+                    $balanceDue = $order->total_amount - $amountPaid;
 
                     fputcsv($file, [
                         $order->po_number,
@@ -229,7 +251,7 @@ class Index extends Component
                         $order->items->count(),
                         $totalQuantity,
                         number_format($order->total_amount, 2),
-                        number_format($order->amount_paid, 2),
+                        number_format($amountPaid, 2),
                         number_format($balanceDue, 2),
                         $order->creator->name ?? 'System',
                         $order->created_at->format('Y-m-d H:i:s'),
@@ -243,9 +265,9 @@ class Index extends Component
                 fputcsv($file, ['SUMMARY STATISTICS']);
                 fputcsv($file, ['Total Purchase Orders Exported', $purchaseOrders->count()]);
                 fputcsv($file, ['Total Amount (₦)', number_format($purchaseOrders->sum('total_amount'), 2)]);
-                fputcsv($file, ['Total Amount Paid (₦)', number_format($purchaseOrders->sum('amount_paid'), 2)]);
-                fputcsv($file, ['Total Balance Due (₦)', number_format($purchaseOrders->sum(fn($o) => $o->total_amount - $o->amount_paid), 2)]);
-                fputcsv($file, ['Total Items Ordered', number_format($purchaseOrders->sum(fn($o) => $o->items->sum('quantity')))]);
+                fputcsv($file, ['Total Amount Paid (₦)', number_format($purchaseOrders->sum(fn($o) => $o->amount_paid ?? 0), 2)]);
+                fputcsv($file, ['Total Balance Due (₦)', number_format($purchaseOrders->sum(fn($o) => $o->total_amount - ($o->amount_paid ?? 0)), 2)]);
+                fputcsv($file, ['Total Items Ordered', number_format($purchaseOrders->sum(fn($o) => $o->items->sum('quantity_ordered')))]);
 
                 // Status Breakdown
                 $statusCounts = $purchaseOrders->groupBy('status')->map->count();
@@ -263,6 +285,21 @@ class Index extends Component
 
                 fclose($file);
             };
+
+            // Create notification about export
+            $notificationService = app(NotificationService::class);
+            $notificationService->create(
+                Auth::user(),
+                'info',
+                'Purchase Orders Export Completed',
+                "You exported purchase orders data to CSV at " . now()->format('g:i A'),
+                [
+                    'action' => 'export_purchase_orders',
+                    'filename' => $filename,
+                    'filters' => $this->getPurchaseOrderFiltersText(),
+                ]
+            );
+            $this->dispatch('notification-created');
 
             return new StreamedResponse($callback, 200, $headers);
 
@@ -291,7 +328,6 @@ class Index extends Component
 
         // Only include supplierFilter if the property exists
         if (property_exists($this, 'supplierFilter') && $this->supplierFilter) {
-            // You might want to fetch the supplier name here if needed
             $filters[] = "Supplier: " . $this->getSupplierName($this->supplierFilter);
         }
 
@@ -324,20 +360,44 @@ class Index extends Component
      */
     public function downloadPdf($purchaseOrderId)
     {
-        $purchaseOrder = PurchaseOrder::with(['supplier', 'items.product', 'creator'])
-            ->findOrFail($purchaseOrderId);
+        try {
+            $purchaseOrder = PurchaseOrder::with(['supplier', 'items.product', 'creator'])
+                ->findOrFail($purchaseOrderId);
 
-        $pdf = Pdf::loadView('pdf.purchase-order', [
-            'purchaseOrder' => $purchaseOrder
-        ]);
+            $pdf = Pdf::loadView('pdf.purchase-order', [
+                'purchaseOrder' => $purchaseOrder
+            ]);
 
-        $fileName = $purchaseOrder->po_number . '-' . now()->format('Y-m-d') . '.pdf';
+            $fileName = $purchaseOrder->po_number . '-' . now()->format('Y-m-d') . '.pdf';
 
-        return response()->streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, $fileName, [
-            'Content-Type' => 'application/pdf',
-        ]);
+            // Create notification about PDF download
+            $notificationService = app(NotificationService::class);
+            $notificationService->create(
+                Auth::user(),
+                'info',
+                'Purchase Order PDF Downloaded',
+                "You downloaded {$purchaseOrder->po_number} as PDF at " . now()->format('g:i A'),
+                [
+                    'action' => 'download_pdf',
+                    'po_number' => $purchaseOrder->po_number,
+                    'supplier_name' => $purchaseOrder->supplier->company_name ?? 'N/A',
+                    'filename' => $fileName,
+                    'link' => route('purchase_orders.show', $purchaseOrder),
+                ]
+            );
+            $this->dispatch('notification-created');
+
+            return response()->streamDownload(function () use ($pdf) {
+                echo $pdf->output();
+            }, $fileName, [
+                'Content-Type' => 'application/pdf',
+            ]);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', [
+                'type' => 'error',
+                'message' => 'Failed to generate PDF: ' . $e->getMessage()
+            ]);
+        }
     }
 
     public function getPurchaseOrders()

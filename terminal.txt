@@ -12,8 +12,7 @@ php artisan make:migration create_purchase_orders_table
 php artisan make:migration create_purchase_order_items_table
 php artisan make:migration create_stock_adjustments_table
 php artisan make:migration create_notifications_table
-
-php artisan make:migration add_theme_and_avatar_to_users_table
+php artisan make:migration create_user_settings_table
 
 php artisan make:model Category
 php artisan make:model Supplier
@@ -22,6 +21,7 @@ php artisan make:model PurchaseOrder
 php artisan make:model PurchaseOrderItem
 php artisan make:model StockAdjustment
 php artisan make:model Notification
+php artisan make:model UserSettings
 
 php artisan make:seeder RolePermissionSeeder
 php artisan make:seeder CategorySeeder
@@ -61,7 +61,13 @@ php artisan make:livewire Notifications/Index
 php artisan make:livewire Notifications/Bell
 php artisan make:livewire Users/Index
 php artisan make:livewire Users/Create
+php artisan make:livewire Users/Edit
 php artisan make:livewire Settings/Index
+php artisan make:livewire Settings/Company
+php artisan make:livewire Settings/Notifications
+php artisan make:livewire Settings/Appearance
+php artisan make:livewire Settings/Security
+php artisan make:livewire Settings/Data
 
 php artisan storage:link
 
@@ -73,6 +79,7 @@ php artisan make:migration add_sent_at_to_purchase_orders_table --table=purchase
 
 php artisan make:livewire StockAdjustments/QuickAdjust
 
+composer require maatwebsite/excel
 
 
 

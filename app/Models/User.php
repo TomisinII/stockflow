@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -19,7 +20,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'company_name',
         'avatar',
         'theme',
     ];
@@ -74,6 +74,14 @@ class User extends Authenticatable
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class)->latest();
+    }
+
+    /**
+     * Get user settings
+     */
+    public function settings(): HasOne
+    {
+        return $this->hasOne(UserSetting::class);
     }
 
     /**
@@ -135,5 +143,13 @@ class User extends Authenticatable
 
         // Default to UI Avatars (generates avatar from initials)
         return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&color=7F9CF5&background=EBF4FF';
+    }
+
+    /**
+     * Get company name from settings
+     */
+    public function getCompanyNameAttribute(): ?string
+    {
+        return $this->settings?->company_name;
     }
 }

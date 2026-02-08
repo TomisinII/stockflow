@@ -61,6 +61,11 @@ class RolePermissionSeeder extends Seeder
 
             // Notification permissions
             'view_notifications',
+
+
+            // Settings permissions
+            'view_settings',
+            'edit_settings',
         ];
 
         // Create all permissions
