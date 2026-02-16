@@ -120,7 +120,7 @@ new #[Layout('layouts.guest')] class extends Component
                         name="remember"
                         class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                     />
-                    <span class="ml-2 text-sm text-gray-600">Remember me for 30 days</span>
+                    <span class="ml-2 text-sm text-gray-600">Remember me</span>
                 </label>
             </div>
 

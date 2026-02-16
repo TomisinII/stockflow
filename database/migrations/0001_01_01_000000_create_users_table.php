@@ -18,6 +18,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('avatar')->nullable();
+            $table->string('company_name')->nullable();
             $table->enum('theme', ['light', 'dark', 'system'])->default('light');
             $table->string('phone', 50)->nullable();
             $table->rememberToken();

@@ -4,9 +4,6 @@ namespace App\Providers;
 
 use App\Services\BarcodeService;
 use App\Services\NotificationService;
-use App\Services\PurchaseOrderService;
-use App\Services\ReportService;
-use App\Services\StockService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -18,9 +15,6 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(NotificationService::class);
         $this->app->singleton(BarcodeService::class);
-        $this->app->singleton(StockService::class);
-        $this->app->singleton(PurchaseOrderService::class);
-        $this->app->singleton(ReportService::class);
     }
 
     /**
