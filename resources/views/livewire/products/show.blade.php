@@ -23,7 +23,7 @@
                     </x-secondary-button>
                     <x-secondary-button
                         wire:click="confirmDelete({{ $product->id }})"
-                        class="!text-red-600 !border-red-300 hover:!bg-red-50 dark:!text-red-400 dark:!border-red-600 dark:hover:!bg-red-900/20">
+                        class="!text-red-600 !border-red-300 hover:!bg-red-50 dark:!text-red-400 dark:!border-red-600 dark:!hover:!bg-red-900/20">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                         </svg>
@@ -64,8 +64,8 @@
                                             <p class="text-sm text-gray-500 dark:text-gray-400">Barcode: {{ $product->barcode }}</p>
                                         @endif
                                     </div>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $product->stock_status['badge'] }}">
-                                        {{ $product->stock_status['status'] }}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $product->stockStatus['badge'] }}">
+                                        {{ $product->stockStatus['status'] }}
                                     </span>
                                 </div>
 
@@ -120,7 +120,7 @@
                             @endif
                             <div>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">Stock Value</p>
-                                <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">₦{{ number_format($product->stock_value, 0) }}</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">₦{{ number_format($product->stockValue, 0) }}</p>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">at cost price</p>
                             </div>
                         </div>
@@ -129,11 +129,27 @@
 
                 {{-- Stock History --}}
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Stock Movements</h2>
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Stock Movements</h2>
+                        
+                        {{-- Tab Toggle --}}
+                        <div class="flex items-center gap-2">
+                            <button
+                                wire:click="setActiveTab('recent')"
+                                class="px-3 py-1 text-sm font-medium rounded-lg transition-colors {{ $activeTab === 'recent' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                            >
+                                Recent
+                            </button>
+                            <button
+                                wire:click="setActiveTab('all')"
+                                class="px-3 py-1 text-sm font-medium rounded-lg transition-colors {{ $activeTab === 'all' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}"
+                            >
+                                All
+                            </button>
+                        </div>
                     </div>
                     <div class="overflow-x-auto">
-                        @if($recentAdjustments->count() > 0)
+                        @if($stockAdjustments->count() > 0)
                             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-700/50">
                                     <tr>
@@ -145,28 +161,27 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                                    @foreach($recentAdjustments as $adjustment)
+                                    @foreach($stockAdjustments as $adjustment)
                                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                                 {{ $adjustment->adjustment_date->format('M d, Y') }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                    {{ $adjustment->adjustment_type === 'in' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200' : '' }}
-                                                    {{ $adjustment->adjustment_type === 'out' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200' : '' }}
-                                                    {{ $adjustment->adjustment_type === 'correction' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200' : '' }}
-                                                ">
-                                                    {{ ucfirst($adjustment->adjustment_type) }}
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $adjustment->typeBadge['class'] }}">
+                                                    {{ $adjustment->typeBadge['label'] }}
                                                 </span>
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium {{ $adjustment->quantity > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
-                                                {{ $adjustment->quantity > 0 ? '+' : '' }}{{ $adjustment->quantity }}
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium {{ $adjustment->quantityColor }}">
+                                                {{ $adjustment->formattedQuantity }}
                                             </td>
                                             <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                                                {{ $adjustment->reason }}
+                                                {{ $adjustment->reasonDisplay }}
+                                                @if($adjustment->reference)
+                                                    <span class="text-gray-400 dark:text-gray-500">({{ $adjustment->reference }})</span>
+                                                @endif
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                                                {{ $adjustment->user->name ?? 'N/A' }}
+                                                {{ $adjustment->adjuster->name ?? 'N/A' }}
                                             </td>
                                         </tr>
                                     @endforeach
@@ -202,8 +217,8 @@
                         </div>
                         <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
                             <p class="text-sm text-gray-500 dark:text-gray-400">Profit Margin</p>
-                            <p class="mt-1 text-xl font-semibold {{ $product->profit_margin > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
-                                {{ number_format($product->profit_margin, 1) }}%
+                            <p class="mt-1 text-xl font-semibold {{ $product->profitMargin > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
+                                {{ number_format($product->profitMargin, 1) }}%
                             </p>
                         </div>
                     </div>
@@ -215,19 +230,28 @@
                         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Actions</h2>
                     </div>
                     <div class="p-6 space-y-3">
-                        <button class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <button
+                            wire:click="openQuickAdjust"
+                            class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        >
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
                             </svg>
                             Adjust Stock
                         </button>
-                        <button class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <button
+                            wire:click="printBarcode"
+                            class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        >
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                             </svg>
                             Print Barcode
                         </button>
-                        <button class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <button
+                            wire:click="viewFullHistory"
+                            class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        >
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
@@ -266,7 +290,28 @@
 
     {{-- Edit Modal --}}
     <livewire:products.edit :product="$product" />
-    {{-- Delete Modal --}}
 
+    {{-- Quick Adjust Modal --}}
+    @if($showQuickAdjustModal)
+        @livewire('stock-adjustments.quick-adjust', ['product' => $product], key('quick-adjust'))
+    @endif
+
+    {{-- Delete Modal --}}
     @livewire('components.confirm-modal')
+
+    {{-- Print Barcode Script --}}
+    @script
+    <script>
+        $wire.on('print-barcode', (event) => {
+            const url = event[0].url;
+            const printWindow = window.open(url, '_blank', 'width=800,height=600');
+            
+            if (printWindow) {
+                printWindow.onload = function() {
+                    printWindow.print();
+                };
+            }
+        });
+    </script>
+    @endscript
 </div>

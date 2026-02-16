@@ -24,6 +24,7 @@ class Index extends Component
     public $endDate = '';
     public $showCreateModal = false;
     public $preselectedProductId = null;
+    public $filteredProductName = null; 
 
     public function mount()
     {
@@ -31,6 +32,18 @@ class Index extends Component
         if (request()->query('action') === 'create-adjustment') {
             $this->preselectedProductId = request()->query('product');
             $this->dispatch('open-modal', 'create-adjustment');
+        }
+
+        // Check if we should filter by product
+        if (request()->query('product')) {
+            $productId = request()->query('product');
+            $this->productFilter = $productId;
+            
+            // Get the product name for display
+            $product = Product::find($productId);
+            if ($product) {
+                $this->filteredProductName = $product->name;
+            }
         }
     }
 
@@ -42,6 +55,14 @@ class Index extends Component
     public function updatingProductFilter()
     {
         $this->resetPage();
+        
+        // Update filtered product name when filter changes
+        if ($this->productFilter) {
+            $product = Product::find($this->productFilter);
+            $this->filteredProductName = $product ? $product->name : null;
+        } else {
+            $this->filteredProductName = null;
+        }
     }
 
     public function updatingTypeFilter()
@@ -83,7 +104,14 @@ class Index extends Component
 
     public function resetFilters()
     {
-        $this->reset(['search', 'productFilter', 'typeFilter', 'reasonFilter', 'startDate', 'endDate']);
+        $this->reset(['search', 'productFilter', 'typeFilter', 'reasonFilter', 'startDate', 'endDate', 'filteredProductName']);
+        $this->resetPage();
+    }
+
+    public function clearProductFilter()
+    {
+        $this->productFilter = '';
+        $this->filteredProductName = null;
         $this->resetPage();
     }
 
@@ -255,7 +283,7 @@ class Index extends Component
 
         if ($this->productFilter) {
             $product = Product::find($this->productFilter);
-            $filters[] = 'Product: ' . $product->name;
+            $filters[] = 'Product: ' . ($product ? $product->name : 'Unknown');
         }
 
         if ($this->typeFilter !== 'all') {
@@ -323,6 +351,9 @@ class Index extends Component
                       ->orWhere('sku', 'like', '%' . $this->search . '%');
                 });
             })
+            ->when($this->productFilter, function ($query) {
+                $query->where('product_id', $this->productFilter);
+            })
             ->when($this->startDate, function ($query) {
                 $query->whereDate('adjustment_date', '>=', $this->startDate);
             })
@@ -341,6 +372,9 @@ class Index extends Component
                     $q->where('name', 'like', '%' . $this->search . '%')
                       ->orWhere('sku', 'like', '%' . $this->search . '%');
                 });
+            })
+            ->when($this->productFilter, function ($query) {
+                $query->where('product_id', $this->productFilter);
             })
             ->when($this->startDate, function ($query) {
                 $query->whereDate('adjustment_date', '>=', $this->startDate);
@@ -361,6 +395,9 @@ class Index extends Component
                       ->orWhere('sku', 'like', '%' . $this->search . '%');
                 });
             })
+            ->when($this->productFilter, function ($query) {
+                $query->where('product_id', $this->productFilter);
+            })
             ->when($this->startDate, function ($query) {
                 $query->whereDate('adjustment_date', '>=', $this->startDate);
             })
@@ -379,6 +416,9 @@ class Index extends Component
                     $q->where('name', 'like', '%' . $this->search . '%')
                       ->orWhere('sku', 'like', '%' . $this->search . '%');
                 });
+            })
+            ->when($this->productFilter, function ($query) {
+                $query->where('product_id', $this->productFilter);
             })
             ->when($this->startDate, function ($query) {
                 $query->whereDate('adjustment_date', '>=', $this->startDate);

@@ -3,6 +3,8 @@
 use App\Livewire\Dashboard;
 use App\Livewire\Landing;
 use App\Livewire\Products;
+use App\Models\Product;
+use App\Services\BarcodeService;
 use App\Livewire\Categories;
 use App\Livewire\Suppliers;
 use App\Livewire\PurchaseOrders;
@@ -22,6 +24,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/products', Products\Index::class)->name('products.index');
     Route::get('/products/{product}', Products\Show::class)->name('products.show');
+
+    Route::get('/products/{product}/barcode', function (Product $product) {
+        $barcodeService = app(BarcodeService::class);
+        $html = $barcodeService->generateBarcodeLabel($product, 'standard');
+        return response($html)->header('Content-Type', 'text/html');
+    })->name('barcode.print');
 
     Route::get('/categories', Categories\Index::class)->name('categories.index');
 
