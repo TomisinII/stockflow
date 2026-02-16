@@ -29,6 +29,7 @@ class Index extends Component
     public $selectAll = false;
 
     public $productToDelete = null;
+    public $filteredSupplierName = null; 
 
     protected $listeners = [
         'confirmed' => 'handleConfirmed',
@@ -47,6 +48,18 @@ class Index extends Component
     {
         if (request()->query('action') === 'create-product') {
             $this->dispatch('open-modal', 'create-product');
+        }
+
+        // Check if we should filter by supplier
+        if (request()->query('supplier')) {
+            $supplierId = request()->query('supplier');
+            $this->supplierFilter = $supplierId;
+            
+            // Get the supplier name for display
+            $supplier = Supplier::find($supplierId);
+            if ($supplier) {
+                $this->filteredSupplierName = $supplier->company_name;
+            }
         }
 
         // Check for low stock and out of stock items on page load
@@ -110,6 +123,14 @@ class Index extends Component
     public function updatingSupplierFilter()
     {
         $this->resetPage();
+        
+        // Update filtered supplier name when filter changes
+        if ($this->supplierFilter) {
+            $supplier = Supplier::find($this->supplierFilter);
+            $this->filteredSupplierName = $supplier ? $supplier->company_name : null;
+        } else {
+            $this->filteredSupplierName = null;
+        }
     }
 
     public function updatingStatusFilter()
@@ -124,7 +145,14 @@ class Index extends Component
 
     public function clearFilters()
     {
-        $this->reset(['search', 'categoryFilter', 'supplierFilter', 'statusFilter', 'stockFilter']);
+        $this->reset(['search', 'categoryFilter', 'supplierFilter', 'statusFilter', 'stockFilter', 'filteredSupplierName']);
+        $this->resetPage();
+    }
+
+    public function clearSupplierFilter()
+    {
+        $this->supplierFilter = '';
+        $this->filteredSupplierName = null;
         $this->resetPage();
     }
 

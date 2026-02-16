@@ -3,6 +3,7 @@
 namespace App\Livewire\PurchaseOrders;
 
 use App\Models\PurchaseOrder;
+use App\Models\Supplier;
 use App\Services\NotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,8 @@ class Index extends Component
     public $showEditModal = false;
     public $selectedPurchaseOrderId = null;
     public $purchaseOrderToDelete = null;
+    public $preselectedSupplierId = null;
+    public $filteredSupplierName = null;
 
     // Status counts for tabs
     public $draftCount = 0;
@@ -30,9 +33,23 @@ class Index extends Component
 
     public function mount()
     {
-        if (request()->query('action') === 'create-purchase-order') {
+        // Check if we should open the create modal with a preselected supplier
+        if (request()->query('action') === 'create-po') {
+            $supplierId = request()->query('supplier');
+            $this->preselectedSupplierId = $supplierId;
+            
+            // Get the supplier name for context
+            if ($supplierId) {
+                $supplier = Supplier::find($supplierId);
+                if ($supplier) {
+                    $this->filteredSupplierName = $supplier->company_name;
+                }
+            }
+            
+            $this->showCreateModal = true;
             $this->dispatch('open-modal', 'create-purchase-order');
         }
+        
         $this->updateStatusCounts();
     }
 
@@ -63,6 +80,7 @@ class Index extends Component
     public function openCreateModal()
     {
         $this->showCreateModal = true;
+        $this->preselectedSupplierId = null; // Reset when opening manually
         $this->dispatch('open-modal', 'create-purchase-order');
     }
 
@@ -134,6 +152,8 @@ class Index extends Component
     public function handlePurchaseOrderCreated()
     {
         $this->showCreateModal = false;
+        $this->preselectedSupplierId = null;
+        $this->filteredSupplierName = null;
         $this->updateStatusCounts();
         $this->dispatch('toast', [
             'type' => 'success',
@@ -348,7 +368,7 @@ class Index extends Component
     private function getSupplierName($supplierId): string
     {
         try {
-            $supplier = \App\Models\Supplier::find($supplierId);
+            $supplier = Supplier::find($supplierId);
             return $supplier ? $supplier->company_name : "ID: {$supplierId}";
         } catch (\Exception $e) {
             return "ID: {$supplierId}";

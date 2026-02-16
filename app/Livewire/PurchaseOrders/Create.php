@@ -17,6 +17,7 @@ class Create extends Component
     public $expected_delivery_date = '';
     public $notes = '';
     public $status = 'draft';
+    public $preselectedSupplierId = null;
 
     // Products management
     public $selectedProducts = [];
@@ -46,10 +47,16 @@ class Create extends Component
         'selectedProducts.*.unit_cost.required' => 'Unit cost is required',
     ];
 
-    public function mount()
+    public function mount($preselectedSupplierId = null)
     {
         $this->order_date = now()->format('Y-m-d');
         $this->po_number = $this->generatePONumber();
+        
+        // Set the preselected supplier if provided
+        if ($preselectedSupplierId) {
+            $this->preselectedSupplierId = $preselectedSupplierId;
+            $this->supplier_id = $preselectedSupplierId;
+        }
     }
 
     public function generatePONumber()
