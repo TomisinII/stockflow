@@ -134,6 +134,8 @@ class Edit extends Component
 
     public function update()
     {
+        $this->authorize('update', $this->product);
+        
         $this->validate();
 
         try {

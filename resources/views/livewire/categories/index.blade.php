@@ -10,6 +10,7 @@
             </p>
         </div>
 
+        @can('create_categories', App\Models\Category::class)
         <!-- Add Category Button -->
         <div class="mt-4 sm:mt-0">
             <x-primary-button
@@ -21,6 +22,7 @@
                 Add Category
             </x-primary-button>
         </div>
+        @endcan
     </div>
 
     <!-- Search Bar -->
@@ -50,6 +52,7 @@
                 >
                     <!-- Three Dots Menu (Shows on Hover) -->
                     <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        @canany(['edit_categories', 'delete_categories'])
                         <button
                             @click="showMenu = !showMenu"
                             @click.away="showMenu = false"
@@ -59,7 +62,7 @@
                                 <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                             </svg>
                         </button>
-
+                        @endcanany
                         <!-- Dropdown Menu -->
                         <div
                             x-show="showMenu"
@@ -155,24 +158,27 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
             </svg>
             <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No categories found</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                @if($search)
-                    No categories match your search criteria.
-                @else
-                    Get started by creating your first category.
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    @if($search)
+                        No categories match your search criteria.
+                    @else
+                        Get started by creating your first category.
+                    @endif
+                </p>
+
+                @if(!$search)
+                    @can('create_categories', App\Models\Category::class)
+                        <button
+                            wire:click="openCreateModal"
+                            class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add Category
+                        </button>
+                    @endcan
                 @endif
-            </p>
-            @if(!$search)
-                <button
-                    wire:click="openCreateModal"
-                    class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                    <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Add Category
-                </button>
-            @endif
         </div>
     @endif
 

@@ -26,7 +26,6 @@ class RolePermissionSeeder extends Seeder
             'delete_products',
 
             // Category permissions
-            'view_categories',
             'create_categories',
             'edit_categories',
             'delete_categories',

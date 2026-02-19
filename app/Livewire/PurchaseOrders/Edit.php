@@ -46,6 +46,8 @@ class Edit extends Component
     {
         $this->purchaseOrder = PurchaseOrder::with(['items.product'])->findOrFail($purchaseOrderId);
 
+        $this->authorize('update', $this->purchaseOrder);
+
         // Populate form fields
         $this->supplier_id = $this->purchaseOrder->supplier_id;
         $this->order_date = $this->purchaseOrder->order_date->format('Y-m-d');

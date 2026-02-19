@@ -20,6 +20,8 @@ class Index extends Component
     ];
 
     public function mount(){
+        $this->authorize('viewAny', Category::class);
+
         if (request()->query('action') === 'create-category') {
             $this->dispatch('open-modal', 'create-category');
         }
@@ -64,6 +66,8 @@ class Index extends Component
     {
         try {
             $category = Category::findOrFail($this->categoryToDelete);
+
+            $this->authorize('delete', $category);
 
             // Check if category has products
             if ($category->products()->count() > 0) {

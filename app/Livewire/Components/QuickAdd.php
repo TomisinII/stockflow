@@ -35,7 +35,7 @@ class QuickAdd extends Component
      */
     public function addStockAdjustment()
     {
-        return redirect()->route('stock_adjustments.index', ['action' => 'create-stock-adjustment']);
+        return redirect()->route('stock_adjustments.index', ['action' => 'create-adjustment']);
     }
 
     /**

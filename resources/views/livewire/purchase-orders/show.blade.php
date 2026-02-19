@@ -37,14 +37,16 @@
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-3 mt-4 sm:mt-0">
-            @if($purchaseOrder->status === 'sent')
-                <x-primary-button wire:click="openReceiveModal">
-                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Receive Order
-                </x-primary-button>
-            @endif
+            @can('receive_purchase_orders', App\Models\PurchaseOrder::class)
+                @if($purchaseOrder->status === 'sent')
+                    <x-primary-button wire:click="openReceiveModal">
+                        <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Receive Order
+                    </x-primary-button>
+                @endif
+            @endcan
 
             <div class="relative" x-data="{ open: false }">
                 <button
@@ -70,18 +72,20 @@
                     style="display: none;"
                 >
                     <div class="py-1">
-                        @if($purchaseOrder->status !== 'received')
-                            <button
-                                wire:click="openEditModal"
-                                @click="open = false"
-                                class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                                <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                </svg>
-                                Edit Order
-                            </button>
-                        @endif
+                        @can('edit_purchase_orders', App\Models\PurchaseOrder::class)
+                            @if($purchaseOrder->status !== 'received')
+                                <button
+                                    wire:click="openEditModal"
+                                    @click="open = false"
+                                    class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                    <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                    Edit Order
+                                </button>
+                            @endif
+                        @endcan
 
                         <button
                             wire:click="downloadPdf({{ $purchaseOrder->id }})"
@@ -94,44 +98,48 @@
                             Download PDF
                         </button>
 
-                        @if($purchaseOrder->status === 'draft')
-                            <button
-                                wire:click="sendOrder"
-                                @click="open = false"
-                                class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                                <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                                </svg>
-                                Mark as Sent
-                            </button>
-                        @endif
+                        @can('edit_purchase_orders', App\Models\PurchaseOrder::class)
+                            @if($purchaseOrder->status === 'draft')
+                                <button
+                                    wire:click="sendOrder"
+                                    @click="open = false"
+                                    class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                    <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                    </svg>
+                                    Mark as Sent
+                                </button>
+                            @endif
 
-                        @if(in_array($purchaseOrder->status, ['draft', 'sent']))
-                            <button
-                                wire:click="cancelOrder"
-                                @click="open = false"
-                                class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                                <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                                Cancel Order
-                            </button>
-                        @endif
+                            @if(in_array($purchaseOrder->status, ['draft', 'sent']))
+                                <button
+                                    wire:click="cancelOrder"
+                                    @click="open = false"
+                                    class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                    <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                    Cancel Order
+                                </button>
+                            @endif
+                        @endcan
 
                         <div class="border-t border-gray-100 dark:border-gray-700"></div>
 
-                        <button
-                            wire:click="confirmDelete"
-                            @click="open = false"
-                            class="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        >
-                            <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                            Delete Order
-                        </button>
+                        @can('delete_purchase_orders', App\Models\PurchaseOrder::class)
+                            <button
+                                wire:click="confirmDelete"
+                                @click="open = false"
+                                class="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                                <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                Delete Order
+                            </button>
+                        @endcan
                     </div>
                 </div>
             </div>

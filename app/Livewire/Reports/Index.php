@@ -103,7 +103,7 @@ class Index extends Component
         $startDate = $this->startDate;
         $endDate   = $this->endDate;
 
-        $adjustments = StockAdjustment::with(['product.category', 'adjustedBy'])
+        $adjustments = StockAdjustment::with(['product.category', 'adjuster'])
             ->whereBetween('adjustment_date', [$startDate, $endDate])
             ->orderBy('adjustment_date', 'desc')
             ->get();

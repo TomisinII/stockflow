@@ -30,6 +30,8 @@ class Index extends Component
 
     public function mount()
     {
+        $this->authorize('viewAny', Supplier::class);
+
         if (request()->query('action') === 'create-supplier') {
             $this->dispatch('open-modal', 'create-supplier');
         }
@@ -62,6 +64,8 @@ class Index extends Component
     {
         $supplier = Supplier::findOrFail($supplierId);
         $this->supplierToDelete = $supplierId;
+
+        $this->authorize('delete', $supplier);
 
         $this->dispatch('showConfirmModal', [
             'title' => 'Delete Supplier',
@@ -132,6 +136,8 @@ class Index extends Component
 
     public function exportSuppliers()
     {
+        $this->authorize('export_reports');
+
         try {
             $filename = 'suppliers-export-' . now()->format('Y-m-d-His') . '.csv';
 

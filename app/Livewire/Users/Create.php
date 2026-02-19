@@ -30,6 +30,11 @@ class Create extends Component
         'role.required' => 'Please select a role',
     ];
 
+    public function mount()
+    {
+        $this->authorize('create', User::class);
+    }
+
     public function save()
     {
         $this->validate();

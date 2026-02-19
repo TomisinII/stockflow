@@ -25,6 +25,8 @@ class Show extends Component
 
     public function mount(Product $product)
     {
+        $this->authorize('view', $product);
+
         $this->product = $product->load(['category', 'supplier', 'stockAdjustments.adjuster']);
     }
 

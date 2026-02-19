@@ -11,6 +11,8 @@ class Index extends Component
 
     public function mount()
     {
+        $this->authorize('view_settings');
+        
         // Check query parameter for initial tab
         if (request()->query('tab')) {
             $this->activeTab = request()->query('tab');

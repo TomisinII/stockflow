@@ -33,6 +33,8 @@ class Notifications extends Component
 
     public function save()
     {
+        $this->authorize('edit_settings');
+        
         $this->validate([
             'low_stock_threshold' => 'required|in:10,20,30,50',
         ]);

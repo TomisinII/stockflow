@@ -33,8 +33,10 @@ class Index extends Component
 
     public function mount()
     {
+        $this->authorize('viewAny', PurchaseOrder::class);  
+
         // Check if we should open the create modal with a preselected supplier
-        if (request()->query('action') === 'create-po') {
+        if (request()->query('action') === 'create-purchase-order') {
             $supplierId = request()->query('supplier');
             $this->preselectedSupplierId = $supplierId;
             
@@ -94,6 +96,9 @@ class Index extends Component
     public function confirmDelete($purchaseOrderId)
     {
         $purchaseOrder = PurchaseOrder::findOrFail($purchaseOrderId);
+
+        $this->authorize('delete', $purchaseOrder);
+
         $this->purchaseOrderToDelete = $purchaseOrderId;
 
         $this->dispatch('showConfirmModal', [
@@ -178,6 +183,8 @@ class Index extends Component
      */
     public function exportPurchaseOrders()
     {
+        $this->authorize('export_reports');
+        
         try {
             $filename = 'purchase-orders-export-' . now()->format('Y-m-d-His') . '.csv';
 

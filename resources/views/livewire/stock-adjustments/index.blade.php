@@ -12,18 +12,22 @@
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-3 mt-4 sm:mt-0">
-            <x-secondary-button wire:click="exportAdjustments">
-                <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                Export
-            </x-secondary-button>
-            <x-primary-button wire:click="openCreateModal">
-                <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                New Adjustment
-            </x-primary-button>
+            @can('export_reports')
+                <x-secondary-button wire:click="exportAdjustments">
+                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Export
+                </x-secondary-button>
+            @endcan
+            @can('create_stock_adjustments', App\Models\StockAdjustment::class)
+                <x-primary-button wire:click="openCreateModal">
+                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    New Adjustment
+                </x-primary-button>
+            @endcan
         </div>
     </div>
 
@@ -269,17 +273,19 @@
                 @endif
             </p>
             @if(!$search && $typeFilter === 'all')
-                <div class="mt-6">
-                    <button
-                        wire:click="openCreateModal"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        New Adjustment
-                    </button>
-                </div>
+                @can('create_stock_adjustments', App\Models\StockAdjustment::class)
+                    <div class="mt-6">
+                        <button
+                            wire:click="openCreateModal"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            New Adjustment
+                        </button>
+                    </div>
+                @endcan
             @endif
         </div>
     @endif

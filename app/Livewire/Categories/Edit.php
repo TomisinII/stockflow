@@ -81,6 +81,8 @@ class Edit extends Component
         try {
             $category = Category::findOrFail($this->categoryId);
 
+            $this->authorize('update', $category);
+
             $category->update([
                 'name' => $this->name,
                 'description' => $this->description,

@@ -59,6 +59,8 @@ class Edit extends Component
     {
         $this->supplier = Supplier::findOrFail($supplierId);
 
+        $this->authorize('update', $this->supplier);
+
         $this->company_name = $this->supplier->company_name;
         $this->contact_person = $this->supplier->contact_person;
         $this->email = $this->supplier->email;

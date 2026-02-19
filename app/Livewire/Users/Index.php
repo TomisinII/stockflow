@@ -21,6 +21,11 @@ class Index extends Component
     public $selectedUserId = null;
     public $userToDelete = null;
 
+    public function mount()
+    {
+        $this->authorize('viewAny', User::class);
+    }
+    
     public function updatingSearch()
     {
         $this->resetPage();

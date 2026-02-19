@@ -28,6 +28,10 @@ class Index extends Component
 
     public function mount()
     {
+        if(request()->query('action') === 'create-adjustment'){
+            $this->dispatch('open-modal', 'create-adjustment');
+        }
+
         // Check if we should open the create modal with a preselected product
         if (request()->query('action') === 'create-adjustment') {
             $this->preselectedProductId = request()->query('product');
@@ -117,6 +121,8 @@ class Index extends Component
 
     public function exportAdjustments()
     {
+        $this->authorize('export_reports');
+        
         try {
             $filename = 'stock-adjustments-export-' . now()->format('Y-m-d-His') . '.csv';
 

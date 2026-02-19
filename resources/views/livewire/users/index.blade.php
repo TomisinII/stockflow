@@ -10,15 +10,18 @@
             </p>
         </div>
 
-        <!-- Add User Button -->
-        <div class="flex items-center space-x-3 mt-4 sm:mt-0">
-            <x-primary-button wire:click="openCreateModal">
-                <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Add User
-            </x-primary-button>
-        </div>
+
+        @can('create_users', App\Models\User::class)
+            <!-- Add User Button -->
+            <div class="flex items-center space-x-3 mt-4 sm:mt-0">
+                <x-primary-button wire:click="openCreateModal">
+                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add User
+                </x-primary-button>
+            </div>
+        @endcan
     </div>
 
     <!-- Statistics Cards -->
@@ -239,17 +242,19 @@
                                             style="display: none;"
                                         >
                                             <div class="py-1">
-                                                <!-- Edit User -->
-                                                <button
-                                                    wire:click="openEditModal({{ $user->id }})"
-                                                    @click="open = false"
-                                                    class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                                >
-                                                    <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                    </svg>
-                                                    Edit User
-                                                </button>
+                                                @can('edit_users', App\Models\User::class)
+                                                    <!-- Edit User -->
+                                                    <button
+                                                        wire:click="openEditModal({{ $user->id }})"
+                                                        @click="open = false"
+                                                        class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                    >
+                                                        <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                        </svg>
+                                                        Edit User
+                                                    </button>
+                                                @endcan
 
                                                 <!-- Resend Invitation (if pending) -->
                                                 @if(!$user->email_verified_at)
@@ -265,19 +270,21 @@
                                                     </button>
                                                 @endif
 
-                                                <!-- Delete User (can't delete yourself) -->
-                                                @if($user->id !== auth()->id())
-                                                    <button
-                                                        wire:click="confirmDelete({{ $user->id }})"
-                                                        @click="open = false"
-                                                        class="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                                    >
-                                                        <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                        </svg>
-                                                        Delete User
-                                                    </button>
-                                                @endif
+                                                @can('delete_users', 'App\Models\User::class')
+                                                    <!-- Delete User (can't delete yourself) -->
+                                                    @if($user->id !== auth()->id())
+                                                        <button
+                                                            wire:click="confirmDelete({{ $user->id }})"
+                                                            @click="open = false"
+                                                            class="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                        >
+                                                            <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                            </svg>
+                                                            Delete User
+                                                        </button>
+                                                    @endif
+                                                @endcan
                                             </div>
                                         </div>
                                     </div>

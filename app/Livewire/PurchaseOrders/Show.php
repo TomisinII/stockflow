@@ -16,6 +16,8 @@ class Show extends Component
 
     public function mount(PurchaseOrder $purchaseOrder)
     {
+        $this->authorize('view', $purchaseOrder);
+        
         $this->purchaseOrder = $purchaseOrder->load([
             'supplier',
             'items.product.category',
@@ -104,6 +106,8 @@ class Show extends Component
             ]);
             return;
         }
+
+        $this->authorize('cancel', $this->purchaseOrder);
 
         $this->dispatch('showConfirmModal', [
             'title' => 'Cancel Purchase Order',

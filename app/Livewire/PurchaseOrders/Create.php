@@ -49,6 +49,8 @@ class Create extends Component
 
     public function mount($preselectedSupplierId = null)
     {
+        $this->authorize('create', PurchaseOrder::class);
+        
         $this->order_date = now()->format('Y-m-d');
         $this->po_number = $this->generatePONumber();
         

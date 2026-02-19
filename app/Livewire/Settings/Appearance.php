@@ -30,6 +30,8 @@ class Appearance extends Component
 
     public function save()
     {
+        $this->authorize('edit_settings');
+        
         $this->validate();
 
         $user = Auth::user();

@@ -81,6 +81,12 @@ php artisan make:livewire StockAdjustments/QuickAdjust
 
 composer require maatwebsite/excel
 
+php artisan make:policy ProductPolicy --model=Product
+php artisan make:policy SupplierPolicy --model=Supplier
+php artisan make:policy PurchaseOrderPolicy --model=PurchaseOrder
+php artisan make:policy UserPolicy --model=User
+php artisan make:policy CategoryPolicy --model=Category
+php artisan make:policy ReportPolicy
 
 
 

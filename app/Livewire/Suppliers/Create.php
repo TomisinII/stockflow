@@ -64,6 +64,8 @@ class Create extends Component
     {
         $this->validate();
 
+        $this->authorize('create', Supplier::class);
+
         $supplier = Supplier::create([
             'company_name' => $this->company_name,
             'contact_person' => $this->contact_person,

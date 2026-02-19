@@ -34,6 +34,9 @@ class Edit extends Component
     public function mount($userId)
     {
         $this->user = User::findOrFail($userId);
+
+        $this->authorize('update', $this->user);
+
         $this->name = $this->user->name;
         $this->email = $this->user->email;
         $this->role = $this->user->roles->first()?->name ?? 'Staff';

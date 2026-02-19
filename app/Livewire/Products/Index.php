@@ -46,6 +46,8 @@ class Index extends Component
 
     public function mount()
     {
+        $this->authorize('viewAny', Product::class);
+
         if (request()->query('action') === 'create-product') {
             $this->dispatch('open-modal', 'create-product');
         }
@@ -215,6 +217,8 @@ class Index extends Component
         if ($this->productToDelete) {
             $product = Product::find($this->productToDelete);
 
+            $this->authorize('delete', $product);
+
             if ($product) {
                 try {
                     $productName = $product->name;
@@ -360,6 +364,8 @@ class Index extends Component
 
     public function exportProducts()
     {
+        $this->authorize('export_reports');
+        
         try {
             $filename = 'products-export-' . now()->format('Y-m-d-His') . '.csv';
 

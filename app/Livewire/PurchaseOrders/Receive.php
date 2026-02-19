@@ -28,6 +28,8 @@ class Receive extends Component
     {
         $this->purchaseOrder = PurchaseOrder::with(['items.product', 'supplier'])->findOrFail($purchaseOrderId);
 
+        $this->authorize('recieve', $this->purchaseOrder);
+
         // Check if PO can be received
         if (!$this->purchaseOrder->canBeReceived()) {
             abort(403, 'This purchase order cannot be received.');

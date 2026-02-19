@@ -78,6 +78,8 @@ class Dashboard extends Component
 
     public function exportDashboardReport()
     {
+        $this->authorize('export_reports');
+
         try {
             $filename = 'dashboard-report-' . now()->format('Y-m-d-His') . '.csv';
 

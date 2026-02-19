@@ -34,6 +34,8 @@ class Show extends Component
     public function mount(Supplier $supplier)
     {
         $this->supplier = $supplier;
+
+        $this->authorize('view', $supplier);
     }
 
     public function openEditModal($supplierId)
@@ -53,6 +55,8 @@ class Show extends Component
     {
         $supplier = Supplier::findOrFail($supplierId);
         $this->supplierToDelete = $supplierId;
+
+        $this->authorize('delete', $supplier);
 
         // Check if supplier has associated products
         $productsCount = $supplier->products()->count();

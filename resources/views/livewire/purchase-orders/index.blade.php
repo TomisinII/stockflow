@@ -12,18 +12,23 @@
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-3 mt-4 sm:mt-0">
+            @can('export_reports')
             <x-secondary-button wire:click="exportPurchaseOrders">
                 <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
                 Export
             </x-secondary-button>
+            @endcan
+
+            @can('create_purchase_orders', App\Models\PurchaseOrder::class)
             <x-primary-button wire:click="openCreateModal">
                 <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 Create PO
             </x-primary-button>
+            @endcan
         </div>
     </div>
 
@@ -252,28 +257,32 @@
                                                     </svg>
                                                     Download PDF
                                                 </button>
-                                                @if($order->status === 'draft')
+                                                @can('edit_purchase_orders', App\Models\PurchaseOrder::class)
+                                                    @if($order->status === 'draft')
+                                                        <button
+                                                            wire:click="openEditModal({{ $order->id }})"
+                                                            @click="open = false"
+                                                            class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                        >
+                                                            <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                            </svg>
+                                                            Edit
+                                                        </button>
+                                                    @endif
+                                                @endcan
+                                                @can('delete_purchase_orders', App\Models\PurchaseOrder::class)
                                                     <button
-                                                        wire:click="openEditModal({{ $order->id }})"
+                                                        wire:click="confirmDelete({{ $order->id }})"
                                                         @click="open = false"
-                                                        class="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                        class="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                     >
                                                         <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                         </svg>
-                                                        Edit
+                                                        Delete
                                                     </button>
-                                                @endif
-                                                <button
-                                                    wire:click="confirmDelete({{ $order->id }})"
-                                                    @click="open = false"
-                                                    class="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                                >
-                                                    <svg class="w-4 h-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                    </svg>
-                                                    Delete
-                                                </button>
+                                                @endcan
                                             </div>
                                         </div>
                                     </div>
@@ -304,6 +313,7 @@
                 @endif
             </p>
             @if(!$search && $statusFilter === 'all')
+             @can('create_purchase_orders', App\Models\PurchaseOrder::class)
                 <div class="mt-6">
                     <button
                         wire:click="openCreateModal"
@@ -315,6 +325,7 @@
                         Create Purchase Order
                     </button>
                 </div>
+                @endcan
             @endif
         </div>
     @endif

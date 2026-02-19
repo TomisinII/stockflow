@@ -12,6 +12,7 @@
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-3 mt-4 sm:mt-0">
+            @can('export_reports')
             <x-secondary-button
                 wire:click="exportSuppliers"
             >
@@ -20,6 +21,8 @@
                 </svg>
                 Export
             </x-secondary-button>
+            @endcan
+            @can('create_suppliers', App\Models\Supplier::class)
             <x-primary-button
                 wire:click="openCreateModal"
             >
@@ -28,6 +31,7 @@
                 </svg>
                 Add Supplier
             </x-primary-button>
+            @endcan
         </div>
     </div>
 
@@ -129,6 +133,7 @@
                                         </svg>
                                         View Details
                                     </a>
+                                    @can('edit_suppliers', App\Models\Supplier::class)
                                     <button
                                         wire:click="openEditModal({{ $supplier->id }})"
                                         @click="open = false"
@@ -139,6 +144,8 @@
                                         </svg>
                                         Edit
                                     </button>
+                                    @endcan
+                                    @can('delete_suppliers', App\Models\Supplier::class)
                                     <button
                                         wire:click="confirmDelete({{ $supplier->id }})"
                                         @click="open = false"
@@ -149,6 +156,7 @@
                                         </svg>
                                         Delete
                                     </button>
+                                    @endcan
                                 </div>
                             </div>
                         </div>
@@ -264,17 +272,19 @@
                 @endif
             </p>
             @if(!$search && $statusFilter === 'all')
-                <div class="mt-6">
-                    <button
-                        wire:click="openCreateModal"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        Add Supplier
-                    </button>
-                </div>
+                @can('create', App\Models\Supplier::class)
+                    <div class="mt-6">
+                        <button
+                            wire:click="openCreateModal"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add Supplier
+                        </button>
+                    </div>
+                @endcan
             @endif
         </div>
     @endif
